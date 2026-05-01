@@ -2,7 +2,8 @@ from flask import Flask, request, jsonify, render_template #新增render_templat
 from flask_cors import CORS
 import spacy
 import requests
-from googletrans import Translator
+#from googletrans import Translator
+from deep_translator import GoogleTranslator
 import re
 import time
 
@@ -16,7 +17,7 @@ except:
     print("找不到模型，請執行: python -m spacy download en_core_web_sm")
 
 # 初始化翻譯器
-translator = Translator()
+#translator = Translator()
 
 STOP_WORDS = {"i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "he", "him", "his", "she", "her", "hers", "it", "its", "they", "them", "their", "a", "an", "the", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "if", "or", "as", "until", "while", "of", "at", "by", "for", "with", "about", "to", "from", "in", "out", "on", "off", "when", "where", "why", "how", "all"}
 
@@ -57,19 +58,19 @@ def analyze():
                 
                 # 2. 強制翻譯：單字 & 解釋 (加入重試機制)
                 try:
-                    # 翻譯單字
-                    chinese_word = translator.translate(word_lower, dest='zh-tw').text
-                    time.sleep(0.1) # 稍微停頓，避免被 Google 封鎖
+                    # 翻譯單字 
+                    chinese_word = GoogleTranslator(source='auto', target='zh-TW').translate(word_lower)
+                    time.sleep(0.1) 
                     
-                    # 翻譯解釋 (如果原解釋不是 'No definition found')
+                    # 翻譯解釋 
                     if eng_def != "No definition found":
-                        chinese_def = translator.translate(eng_def, dest='zh-tw').text
+                        chinese_def = GoogleTranslator(source='auto', target='zh-TW').translate(eng_def)
                     else:
                         chinese_def = "找不到中文解釋"
                 except Exception as e:
                     print(f"翻譯出錯: {e}")
                     chinese_word = "翻譯超時"
-                    chinese_def = "請稍後再試 (Google 翻譯繁忙)"
+                    chinese_def = "請稍後再試"
 
                 vocab_results[word_lower] = {
                     "count": 1,
