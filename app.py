@@ -1,8 +1,7 @@
-from flask import Flask, request, jsonify, render_template #新增render_template
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import spacy
 import requests
-#from googletrans import Translator
 from deep_translator import GoogleTranslator
 import re
 import time
@@ -10,14 +9,11 @@ import time
 app = Flask(__name__)
 CORS(app)
 
-# 初始化
+# 初始化模型
 try:
     nlp = spacy.load("en_core_web_sm")
 except:
     print("找不到模型，請執行: python -m spacy download en_core_web_sm")
-
-# 初始化翻譯器
-#translator = Translator()
 
 STOP_WORDS = {"i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "he", "him", "his", "she", "her", "hers", "it", "its", "they", "them", "their", "a", "an", "the", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "if", "or", "as", "until", "while", "of", "at", "by", "for", "with", "about", "to", "from", "in", "out", "on", "off", "when", "where", "why", "how", "all"}
 
@@ -28,14 +24,13 @@ def get_word_info(word):
         if response.status_code == 200:
             data = response.json()
             phonetic = data[0].get('phonetic', 'N/A')
-            # 取得英文解釋
             definition = data[0]['meanings'][0]['definitions'][0].get('definition', 'No definition found')
             return phonetic, definition
     except:
         pass
     return "N/A", "No definition found"
 
-@app.route('/') #新增首頁路由
+@app.route('/')
 def index():
     return render_template('index.html')
 
@@ -56,13 +51,11 @@ def analyze():
                 # 1. 抓取英文音標與英文解釋
                 phonetic, eng_def = get_word_info(word_lower)
                 
-                # 2. 強制翻譯：單字 & 解釋 (加入重試機制)
+                # 2. 強制翻譯：單字 & 解釋
                 try:
-                    # 翻譯單字 
                     chinese_word = GoogleTranslator(source='auto', target='zh-TW').translate(word_lower)
                     time.sleep(0.1) 
                     
-                    # 翻譯解釋 
                     if eng_def != "No definition found":
                         chinese_def = GoogleTranslator(source='auto', target='zh-TW').translate(eng_def)
                     else:
@@ -76,7 +69,7 @@ def analyze():
                     "count": 1,
                     "pos": token.pos_,
                     "phonetic": phonetic,
-                    "definition": chinese_def, # 這裡已經被替換成中文翻譯結果
+                    "definition": chinese_def,
                     "chinese": chinese_word
                 }
             else:
