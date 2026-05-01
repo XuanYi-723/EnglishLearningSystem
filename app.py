@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import spacy
+import spacy.cli
 import requests
 from deep_translator import GoogleTranslator
 import re
@@ -13,7 +14,9 @@ CORS(app)
 try:
     nlp = spacy.load("en_core_web_sm")
 except:
-    print("找不到模型，請執行: python -m spacy download en_core_web_sm")
+    print("找不到模型，系統正在自動下載中...")
+    spacy.cli.download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 
 STOP_WORDS = {"i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "he", "him", "his", "she", "her", "hers", "it", "its", "they", "them", "their", "a", "an", "the", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "if", "or", "as", "until", "while", "of", "at", "by", "for", "with", "about", "to", "from", "in", "out", "on", "off", "when", "where", "why", "how", "all"}
 
