@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template #新增render_template
 from flask_cors import CORS
 import spacy
 import requests
@@ -33,6 +33,10 @@ def get_word_info(word):
     except:
         pass
     return "N/A", "No definition found"
+
+@app.route('/') #新增首頁路由
+def index():
+    return render_template('index.html')
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
