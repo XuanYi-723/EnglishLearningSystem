@@ -1,130 +1,152 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 from flask_cors import CORS
 import spacy
-import spacy.cli
 import requests
 from deep_translator import GoogleTranslator 
 import re
 import time
+import os
+import sqlite3
+from fpdf import FPDF
 
-# 建立 Flask 應用程式實例
 app = Flask(__name__)
-# 啟用 CORS（跨來源資源共用），允許前端發送請求給後端 API
 CORS(app)
 
-# 初始化並載入 spacy 英文語言模型
+# 1. 初始化資料庫 (對應計畫書：學習數據追蹤)
+def init_db():
+    conn = sqlite3.connect('learning_data.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS vocab_history 
+                 (word TEXT PRIMARY KEY, level TEXT, chinese TEXT, appearance_count INTEGER)''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# 2. 載入 NLP 模型
 try:
-    # 嘗試載入小型英文模型
     nlp = spacy.load("en_core_web_sm")
 except:
-    # 若模型不存在，則自動進行下載並重新載入
-    print("找不到模型，系統正在自動下載中...")
+    import spacy.cli
     spacy.cli.download("en_core_web_sm")
     nlp = spacy.load("en_core_web_sm")
 
-# 定義停用詞集合（過濾掉常見且無實際分析價值的單字）
-STOP_WORDS = {"i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "he", "him", "his", "she", "her", "hers", "it", "its", "they", "them", "their", "a", "an", "the", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "but", "if", "or", "as", "until", "while", "of", "at", "by", "for", "with", "about", "to", "from", "in", "out", "on", "off", "when", "where", "why", "how", "all"}
+# 3. 難易度分級邏輯 (對應計畫書：適性化學習與分級機制)
+def get_word_level(word):
+    # 簡單演算法：根據長度與常用度初步判定
+    common_basic = {"apple", "banana", "water", "school", "family", "happy", "study"}
+    if word in common_basic or len(word) <= 4:
+        return "基礎 (Level 1)"
+    elif len(word) <= 7:
+        return "進階 (Level 2)"
+    else:
+        return "挑戰 (Level 3)"
 
 def get_word_info(word):
-    """
-    透過 Dictionary API 取得單字的音標與英文解釋
-    """
     url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
     try:
-        # 發送 GET 請求，設定超時時間為 3 秒
         response = requests.get(url, timeout=3)
         if response.status_code == 200:
             data = response.json()
-            # 提取音標，若無則回傳 'N/A'
             phonetic = data[0].get('phonetic', 'N/A')
-            # 提取第一組定義，若無則回傳 'No definition found'
             definition = data[0]['meanings'][0]['definitions'][0].get('definition', 'No definition found')
             return phonetic, definition
     except:
-        # 發生任何錯誤則忽略並回傳預設值
         pass
     return "N/A", "No definition found"
 
 @app.route('/')
 def index():
-    """
-    首頁路由，渲染前端介面 (index.html)
-    """
     return render_template('index.html')
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    """
-    接收前端傳來的文本，進行自然語言處理與單字分析
-    """
     data = request.json
     text = data.get('text', '')
-    
-    # 若未提供文本，回傳 400 錯誤
     if not text:
         return jsonify({"error": "No text"}), 400
 
-    # 使用 spacy 解析文本
     doc = nlp(text)
     vocab_results = {}
+    
+    conn = sqlite3.connect('learning_data.db')
+    c = conn.cursor()
 
-    # 走訪文本中的每一個 token（詞彙）
     for token in doc:
         word_lower = token.text.lower()
-        
-        # 過濾條件：必須為純字母字串、不在停用詞內，且長度大於 2
-        if token.is_alpha and word_lower not in STOP_WORDS and len(word_lower) > 2:
+        # 過濾停用詞與非字母
+        if token.is_alpha and not token.is_stop and len(word_lower) > 2:
             if word_lower not in vocab_results:
-                # 1. 抓取英文音標與英文解釋
                 phonetic, eng_def = get_word_info(word_lower)
+                level = get_word_level(word_lower)
                 
-                # 2. 強制翻譯：單字 & 解釋
+                # 執行翻譯
                 try:
-                    # 將英文單字翻譯成繁體中文
                     chinese_word = GoogleTranslator(source='auto', target='zh-TW').translate(word_lower)
-                    # 暫停 0.1 秒，避免過度頻繁請求被阻擋
-                    time.sleep(0.1) 
-                    
-                    # 若有抓到英文解釋，則一併將解釋翻譯成繁體中文
-                    if eng_def != "No definition found":
-                        chinese_def = GoogleTranslator(source='auto', target='zh-TW').translate(eng_def)
-                    else:
-                        chinese_def = "找不到中文解釋"
-                except Exception as e:
-                    # 翻譯失敗時的防呆處理
-                    print(f"翻譯出錯: {e}")
-                    chinese_word = "翻譯超時"
-                    chinese_def = "請稍後再試"
+                    time.sleep(0.05) 
+                    chinese_def = GoogleTranslator(source='auto', target='zh-TW').translate(eng_def) if eng_def != "No definition found" else "找不到解釋"
+                except:
+                    chinese_word, chinese_def = "翻譯超時", "請稍候再試"
 
-                # 將處理好的單字資訊存入結果字典
                 vocab_results[word_lower] = {
                     "count": 1,
-                    "pos": token.pos_,          # 詞性 (Part of Speech)
-                    "phonetic": phonetic,       # 音標
-                    "definition": chinese_def,  # 中文解釋
-                    "chinese": chinese_word     # 中文翻譯
+                    "pos": token.pos_,
+                    "phonetic": phonetic,
+                    "definition": chinese_def,
+                    "chinese": chinese_word,
+                    "level": level
                 }
+                
+                # 存入資料庫
+                c.execute("INSERT OR REPLACE INTO vocab_history VALUES (?, ?, ?, (SELECT appearance_count FROM vocab_history WHERE word=?)+1)", 
+                          (word_lower, level, chinese_word, word_lower))
             else:
-                # 若單字已存在於字典中，則出現次數加 1
                 vocab_results[word_lower]["count"] += 1
 
-    # 螢光筆邏輯：將分析出的單字在原文中標記起來
+    conn.commit()
+    conn.close()
+
+    # 螢光筆標記
     highlighted_text = text
-    # 依單字長度由長到短排序，避免短單字替換到長單字的一部分（例如 'are' 與 'care'）
     sorted_keywords = sorted(vocab_results.keys(), key=len, reverse=True)
-    
     for word in sorted_keywords:
-        # 使用正則表達式，忽略大小寫，匹配完整的單字邊界 (\b)
         pattern = re.compile(rf'\b({re.escape(word)})\b', re.IGNORECASE)
-        # 用 <mark> 標籤包覆匹配到的單字
         highlighted_text = pattern.sub(r'<mark>\1</mark>', highlighted_text)
 
-    # 回傳 JSON 格式的分析結果
-    return jsonify({
-        "highlighted": highlighted_text,
-        "vocabulary": vocab_results
-    })
+    return jsonify({"highlighted": highlighted_text, "vocabulary": vocab_results})
+
+@app.route('/export_pdf', methods=['POST'])
+def export_pdf():
+    """對應計畫書：一鍵生成實體教案卡牌 (虛實整合)"""
+    data = request.json.get('vocabulary', {})
+    if not data:
+        return jsonify({"error": "No data"}), 400
+
+    pdf = FPDF()
+    pdf.add_page()
+    # 注意：PDF 預設不支援中文，若要顯示中文需在此載入字體檔 (.ttf)
+    # 這裡先使用 Arial 並輸出英文與符號，中文內容會以拼音或提示呈現，除非你提供字體
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt="Smart English Learning Cards", ln=True, align='C')
+    pdf.ln(10)
+
+    for word, info in data.items():
+        pdf.set_fill_color(240, 240, 240)
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, f" Word: {word.upper()} ({info['level']})", ln=True, fill=True)
+        
+        pdf.set_font("Arial", '', 10)
+        pdf.cell(0, 8, f" POS: {info['pos']} | Phonetic: {info['phonetic']}", ln=True)
+        # 由於 FPDF 預設字體限制，建議在此輸出重要單字
+        pdf.multi_cell(0, 8, f" Meaning: {info['chinese']}")
+        pdf.ln(5)
+        
+        if pdf.get_y() > 250:
+            pdf.add_page()
+
+    output_filename = "learning_cards.pdf"
+    pdf.output(output_filename)
+    return send_file(output_filename, as_attachment=True)
 
 if __name__ == '__main__':
-    # 啟動 Flask 伺服器，監聽所有 IP 的 5000 埠
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
