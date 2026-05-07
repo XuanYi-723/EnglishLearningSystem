@@ -13,7 +13,7 @@ from fpdf import FPDF
 app = Flask(__name__)
 CORS(app)
 
-# 1. 記憶體優化：關閉不必要的 NLP 組件
+# 1. 記憶體優化：載入模型時關閉不必要的組件
 try:
     nlp = spacy.load("en_core_web_sm", disable=["ner", "parser"])
 except:
@@ -21,11 +21,14 @@ except:
     spacy.cli.download("en_core_web_sm")
     nlp = spacy.load("en_core_web_sm", disable=["ner", "parser"])
 
-# 2. 效能優化：使用快取減少網路延遲
+# 2. 效能優化：使用快取減少重複翻譯的網路等待時間
 @functools.lru_cache(maxsize=1024)
 def get_cached_translation(text):
     if not text or text == "No definition found": return "無解釋"
-    return GoogleTranslator(source='auto', target='zh-TW').translate(text)
+    try:
+        return GoogleTranslator(source='auto', target='zh-TW').translate(text)
+    except:
+        return "翻譯超時"
 
 @functools.lru_cache(maxsize=1024)
 def get_cached_word_info(word):
@@ -62,7 +65,6 @@ def analyze():
     doc = nlp(text)
     vocab_results = {}
     
-    # 使用 context manager 確保資料庫資源正確釋放
     with sqlite3.connect('learning_data.db') as conn:
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS vocab_history 
@@ -73,15 +75,11 @@ def analyze():
             if token.is_alpha and not token.is_stop and len(word_lower) > 2:
                 current_level = get_word_level(word_lower)
                 
-                # 僅處理符合使用者選擇難度的單字
                 if target_level == "全部" or current_level == target_level:
                     if word_lower not in vocab_results:
                         phonetic, eng_def = get_cached_word_info(word_lower)
-                        try:
-                            chinese_word = get_cached_translation(word_lower)
-                            chinese_def = get_cached_translation(eng_def)
-                        except:
-                            chinese_word, chinese_def = "翻譯中", "稍後再試"
+                        chinese_word = get_cached_translation(word_lower)
+                        chinese_def = get_cached_translation(eng_def)
 
                         vocab_results[word_lower] = {
                             "count": 1,
@@ -96,7 +94,6 @@ def analyze():
                     else:
                         vocab_results[word_lower]["count"] += 1
 
-    # 螢光筆標記
     highlighted_text = text
     for word in sorted(vocab_results.keys(), key=len, reverse=True):
         pattern = re.compile(rf'\b({re.escape(word)})\b', re.IGNORECASE)
@@ -107,25 +104,37 @@ def analyze():
 @app.route('/export_pdf', methods=['POST'])
 def export_pdf():
     data = request.json.get('vocabulary', {})
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Smart English Learning Cards", ln=True, align='C')
-    pdf.ln(10)
+    if not data: return jsonify({"error": "No data"}), 400
 
-    for word, info in data.items():
-        pdf.set_fill_color(240, 240, 240)
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, f" Word: {word.upper()} ({info['level']})", ln=True, fill=True)
-        pdf.set_font("Arial", '', 10)
-        pdf.cell(0, 8, f" POS: {info['pos']} | Phonetic: {info['phonetic']}", ln=True)
-        pdf.multi_cell(0, 8, f" Meaning: {info['chinese']}")
-        pdf.ln(5)
-        if pdf.get_y() > 250: pdf.add_page()
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 18)
+        pdf.cell(200, 10, txt="Smart Vocabulary Learning Cards", ln=True, align='C')
+        pdf.ln(10)
 
-    output_filename = "learning_cards.pdf"
-    pdf.output(output_filename)
-    return send_file(output_filename, as_attachment=True)
+        for word, info in data.items():
+            pdf.set_fill_color(245, 245, 245)
+            pdf.set_font("Arial", 'B', 14)
+            # PDF 僅寫入英文部分，避免中文亂碼導致下載失敗
+            pdf.cell(0, 10, f"  WORD: {word.upper()}  [{info['level']}]", ln=True, fill=True)
+            pdf.set_font("Arial", '', 11)
+            pdf.cell(0, 8, f"  POS: {info['pos']}  |  Phonetic: {info['phonetic']}", ln=True)
+            pdf.set_text_color(150, 150, 150)
+            pdf.cell(0, 8, f"  Meaning: ____________________ (Handwritten Notes)", ln=True)
+            pdf.set_text_color(0, 0, 0)
+            pdf.ln(5)
+            if pdf.get_y() > 250: pdf.add_page()
+
+        output_filename = "learning_cards.pdf"
+        if os.path.exists(output_filename):
+            try: os.remove(output_filename)
+            except: output_filename = f"learning_cards_{int(time.time())}.pdf"
+
+        pdf.output(output_filename)
+        return send_file(output_filename, as_attachment=True)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
