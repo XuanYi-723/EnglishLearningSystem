@@ -3,4 +3,4 @@ flask-cors
 requests
 deep-translator
 spacy==3.7.4
-gunicorn
+fpdf2
