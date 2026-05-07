@@ -8,12 +8,13 @@ import re
 import time
 import sqlite3
 import os
-from fpdf import FPDF
+import csv
+import io
 
 app = Flask(__name__)
 CORS(app)
 
-# 1. 記憶體優化：載入模型時關閉不必要的組件
+# 1. NLP 模型自動加載（確保分析功能正常）
 try:
     nlp = spacy.load("en_core_web_sm", disable=["ner", "parser"])
 except:
@@ -21,7 +22,7 @@ except:
     spacy.cli.download("en_core_web_sm")
     nlp = spacy.load("en_core_web_sm", disable=["ner", "parser"])
 
-# 2. 效能優化：使用快取減少重複翻譯的網路等待時間
+# 2. 翻譯與單字資訊快取（加速處理速度）
 @functools.lru_cache(maxsize=1024)
 def get_cached_translation(text):
     if not text or text == "No definition found": return "無解釋"
@@ -82,12 +83,8 @@ def analyze():
                         chinese_def = get_cached_translation(eng_def)
 
                         vocab_results[word_lower] = {
-                            "count": 1,
-                            "pos": token.pos_,
-                            "phonetic": phonetic,
-                            "definition": chinese_def,
-                            "chinese": chinese_word,
-                            "level": current_level
+                            "count": 1, "pos": token.pos_, "phonetic": phonetic,
+                            "definition": chinese_def, "chinese": chinese_word, "level": current_level
                         }
                         c.execute("INSERT OR REPLACE INTO vocab_history VALUES (?, ?, ?, (SELECT appearance_count FROM vocab_history WHERE word=?)+1)", 
                                   (word_lower, current_level, chinese_word, word_lower))
@@ -101,40 +98,27 @@ def analyze():
 
     return jsonify({"highlighted": highlighted_text, "vocabulary": vocab_results})
 
-@app.route('/export_pdf', methods=['POST'])
-def export_pdf():
+# 關鍵更新：改為匯出相容性最強的 CSV 格式
+@app.route('/export_data', methods=['POST'])
+def export_csv():
     data = request.json.get('vocabulary', {})
     if not data: return jsonify({"error": "No data"}), 400
 
-    try:
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", 'B', 18)
-        pdf.cell(200, 10, txt="Smart Vocabulary Learning Cards", ln=True, align='C')
-        pdf.ln(10)
+    output = io.StringIO()
+    output.write('\ufeff') # 寫入 BOM 防止 Excel 開啟亂碼
+    writer = csv.writer(output)
+    writer.writerow(['單字', '難度', '詞性', '音標', '中文翻譯', '英文定義'])
+    
+    for word, info in data.items():
+        writer.writerow([word.upper(), info['level'], info['pos'], info['phonetic'], info['chinese'], info['definition']])
 
-        for word, info in data.items():
-            pdf.set_fill_color(245, 245, 245)
-            pdf.set_font("Arial", 'B', 14)
-            # PDF 僅寫入英文部分，避免中文亂碼導致下載失敗
-            pdf.cell(0, 10, f"  WORD: {word.upper()}  [{info['level']}]", ln=True, fill=True)
-            pdf.set_font("Arial", '', 11)
-            pdf.cell(0, 8, f"  POS: {info['pos']}  |  Phonetic: {info['phonetic']}", ln=True)
-            pdf.set_text_color(150, 150, 150)
-            pdf.cell(0, 8, f"  Meaning: ____________________ (Handwritten Notes)", ln=True)
-            pdf.set_text_color(0, 0, 0)
-            pdf.ln(5)
-            if pdf.get_y() > 250: pdf.add_page()
-
-        output_filename = "learning_cards.pdf"
-        if os.path.exists(output_filename):
-            try: os.remove(output_filename)
-            except: output_filename = f"learning_cards_{int(time.time())}.pdf"
-
-        pdf.output(output_filename)
-        return send_file(output_filename, as_attachment=True)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    output.seek(0)
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='智慧單字學習清單.csv'
+    )
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
