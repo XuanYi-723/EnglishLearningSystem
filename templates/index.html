@@ -2,102 +2,78 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>智慧化英語教材生成系統</title>
+    <title>智慧英語學習系統 - 決賽版</title>
     <style>
-        body { margin: 0; font-family: 'Segoe UI', Arial; background-color: #f4f7f6; color: #333; }
+        body { margin: 0; font-family: 'Segoe UI', Arial; background-color: #f0f4f8; }
         .container { display: flex; height: 100vh; }
         .left { flex: 1; padding: 30px; background: white; border-right: 1px solid #ddd; }
-        .right { flex: 1; padding: 30px; overflow-y: auto; background: #f9f9f9; }
-        textarea { width: 100%; height: 250px; padding: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
-        .level-btn { background: #e1f0ff; color: #007bff; border: 2px solid transparent; padding: 10px 15px; margin: 5px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .level-btn:hover { background: #007bff; color: white; }
-        .level-btn.active { border-color: #333; background: #007bff; color: white; }
-        .action-btn { background: #f39c12; color: white; border: none; padding: 15px 30px; border-radius: 5px; font-size: 18px; cursor: pointer; width: 100%; margin-top: 10px; }
-        .pdf-btn { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; display: none; }
-        mark { background: #fff3cd; padding: 2px 4px; border-radius: 3px; }
-        .word-card { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 5px solid #4a90e2; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .right { flex: 1; padding: 30px; overflow-y: auto; }
+        textarea { width: 100%; height: 200px; padding: 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
+        .level-btn { background: #e1f0ff; color: #007bff; border: 2px solid transparent; padding: 10px 20px; margin: 5px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .level-btn.active { background: #007bff; color: white; border-color: #0056b3; }
+        .action-btn { background: #ff9800; color: white; border: none; padding: 15px; border-radius: 5px; font-size: 18px; cursor: pointer; width: 100%; margin-top: 20px; }
+        .pdf-btn { background: #4caf50; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 15px; display: none; }
+        mark { background: #fff3cd; padding: 2px; border-radius: 3px; }
+        .word-card { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 5px solid #007bff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="left">
-            <h2>Step 1: 輸入英文文章</h2>
-            <textarea id="textInput" placeholder="請貼上文章內容..."></textarea>
+            <h2>Step 1: 輸入文章內容</h2>
+            <textarea id="textInput" placeholder="請貼上英文文章..."></textarea>
             
-            <h2 style="margin-top:25px;">Step 2: 選擇學習難度</h2>
-            <div id="btnGroup">
-                <button onclick="selectLevel('簡單', this)" class="level-btn">簡單 (Level 1)</button>
-                <button onclick="selectLevel('中等', this)" class="level-btn">中等 (Level 2)</button>
-                <button onclick="selectLevel('困難', this)" class="level-btn">困難 (Level 3)</button>
-                <button onclick="selectLevel('全部', this)" class="level-btn">顯示全部</button>
-            </div>
+            <h2 style="margin-top:20px;">Step 2: 選擇單字難度</h2>
+            <button onclick="selectLevel('簡單', this)" class="level-btn">簡單</button>
+            <button onclick="selectLevel('中等', this)" class="level-btn">中等</button>
+            <button onclick="selectLevel('困難', this)" class="level-btn">困難</button>
+            <button onclick="selectLevel('全部', this)" class="level-btn">全部</button>
 
-            <div id="step3" style="display:none; margin-top:30px;">
-                <h2>Step 3: 生成教材</h2>
-                <button onclick="analyze()" class="action-btn">開始智慧分析【<span id="targetLevelLab"></span>】</button>
+            <div id="actionArea" style="display:none;">
+                <button onclick="analyze()" class="action-btn">開始分析 (<span id="lvLab">全部</span>)</button>
                 <button id="pdfBtn" class="pdf-btn" onclick="exportPDF()">匯出實體教案卡牌 (PDF)</button>
             </div>
         </div>
         <div class="right">
-            <h2>分析與分級結果</h2>
-            <div id="highlightedArticle" style="background:white; padding:20px; border-radius:10px; min-height:100px;">等待分析中...</div>
-            <hr>
+            <h2>Step 3: 智慧分析結果</h2>
+            <div id="highlightedArticle" style="background:white; padding:20px; border-radius:10px; margin-bottom:20px;">等待輸入中...</div>
             <div id="output"></div>
         </div>
     </div>
-
     <script>
         let currentLevel = "全部";
         let currentVocab = null;
 
         function selectLevel(level, btn) {
             currentLevel = level;
-            document.getElementById("targetLevelLab").innerText = level;
-            document.getElementById("step3").style.display = "block";
-            
-            const btns = document.querySelectorAll('.level-btn');
-            btns.forEach(b => b.classList.remove('active'));
+            document.getElementById("lvLab").innerText = level;
+            document.getElementById("actionArea").style.display = "block";
+            document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
         }
 
         async function analyze() {
             const text = document.getElementById("textInput").value;
-            if (!text.trim()) return;
-
             const outputDiv = document.getElementById("output");
-            outputDiv.innerHTML = "正在優化效能並分析中...";
-
-            try {
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text, level: currentLevel })
-                });
-                const data = await response.json();
-                currentVocab = data.vocabulary;
-
-                document.getElementById("highlightedArticle").innerHTML = data.highlighted;
-                document.getElementById("pdfBtn").style.display = "inline-block";
-
-                let html = "";
-                for (let word in data.vocabulary) {
-                    let item = data.vocabulary[word];
-                    html += `
-                        <div class="word-card">
-                            <b style="font-size:1.2em;">${word}</b> <small>[${item.level}]</small><br>
-                            <span style="color:#666;">${item.phonetic} | ${item.pos}</span>
-                            <div style="color:#e67e22; font-weight:bold; margin-top:5px;">${item.chinese}</div>
-                            <div style="font-size:0.9em; margin-top:3px;">${item.definition}</div>
-                        </div>`;
-                }
-                outputDiv.innerHTML = html || "此難度下未發現關鍵單字。";
-            } catch (e) {
-                outputDiv.innerHTML = "❌ 連線失敗，請檢查後端。";
+            outputDiv.innerHTML = "系統處理中...";
+            const response = await fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text, level: currentLevel })
+            });
+            const data = await response.json();
+            currentVocab = data.vocabulary;
+            document.getElementById("highlightedArticle").innerHTML = data.highlighted;
+            document.getElementById("pdfBtn").style.display = "block";
+            let html = "";
+            for (let word in data.vocabulary) {
+                let item = data.vocabulary[word];
+                html += `<div class="word-card"><b>${word.toUpperCase()}</b> <small>(${item.level})</small><br>${item.pos} | ${item.phonetic}<br><b style="color:#d35400;">${item.chinese}</b><br>${item.definition}</div>`;
             }
+            outputDiv.innerHTML = html || "找不到符合難度的單字。";
         }
 
         async function exportPDF() {
-            if (!currentVocab) return;
             const response = await fetch('/export_pdf', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -106,9 +82,7 @@
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `適性化教案_${currentLevel}.pdf`;
-            a.click();
+            a.href = url; a.download = "learning_cards.pdf"; a.click();
         }
     </script>
 </body>
