@@ -1,136 +1,48 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <meta charset="UTF-8">
-    <title>英文單字分析工具</title>
-
+    <title>智慧化英語教材生成系統</title>
     <style>
-        /* 移除預設邊距 */
-        body {
-            margin: 0;
-            font-family: Arial;
-        }
-
-        /* 左右版面滿版 */
-        .container {
-            display: flex;
-            height: 100vh;
-        }
-
-        /* 分隔左右區塊 */
-        .left,
-        .right {
-            flex: 1;
-            /* 平分畫面 */
-            padding: 20px;
-        }
-
-        /* 左邊 */
-        .left {
-            background-color: #dff3fb;
-        }
-
-        /* 右邊 */
-        .right {
-            background-color: #dcdcff;
-            overflow-y: auto;
-            /* 內容多可以滾動 */
-        }
-
-        /* textarea(輸入區域) */
-        textarea {
-            width: 100%;
-            height: 200px;
-            font-size: 16px;
-        }
-
-        /* 輸出按鈕 */
-        button {
-            margin-top: 10px;
-            padding: 10px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        /* 螢光筆文章樣式 */
-        #highlightedArticle {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            line-height: 1.6;
-            margin-bottom: 20px;
-            font-size: 18px;
-        }
-
-        /* 單字卡片樣式 */
-        .word {
-            display: block;
-            /* 改為區塊，方便顯示詳細資訊 */
-            margin: 10px 0;
-            padding: 10px;
-            background: white;
-            border-radius: 5px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .count {
-            color: #007bff;
-            font-weight: bold;
-            margin-left: 5px;
-        }
-
-        /* 螢光筆標籤樣式 */
-        mark {
-            background-color: yellow;
-            padding: 0 2px;
-        }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; }
+        .container { display: flex; height: 100vh; }
+        .left { flex: 1; padding: 30px; background-color: #ffffff; border-right: 1px solid #ddd; }
+        .right { flex: 1; padding: 30px; background-color: #f9f9f9; overflow-y: auto; }
+        textarea { width: 100%; height: 300px; padding: 15px; border-radius: 10px; border: 1px solid #ccc; font-size: 16px; resize: none; }
+        button { background-color: #4a90e2; color: white; border: none; padding: 12px 25px; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 15px; }
+        button:hover { background-color: #357abd; }
+        .pdf-btn { background-color: #28a745; margin-left: 10px; display: none; }
+        #highlightedArticle { background: white; padding: 20px; border-radius: 10px; line-height: 1.8; font-size: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .word-card { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 5px solid #4a90e2; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .level-tag { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #e1f0ff; color: #007bff; font-weight: bold; }
+        mark { background-color: #fff3cd; padding: 2px 4px; border-radius: 3px; }
     </style>
 </head>
-
 <body>
-
     <div class="container">
-
         <div class="left">
-            <h2>輸入文章</h2>
-
-            <textarea id="textInput" placeholder="輸入英文文章..."></textarea>
-            <br>
-
-            <button onclick="analyze()">分析單字 & 畫螢光筆</button>
+            <h2>Step 1: 輸入文章內容</h2>
+            <textarea id="textInput" placeholder="請貼上英文文章，系統將自動分級並生成教材..."></textarea>
+            <button onclick="analyze()">開始智慧分析</button>
+            <button id="pdfBtn" class="pdf-btn" onclick="exportPDF()">一鍵生成實體教案 (PDF)</button>
         </div>
-
         <div class="right">
-            <h2>標記文章</h2>
-            <div id="highlightedArticle">等待分析...</div>
-
-            <h2>單字分析結果</h2>
+            <h2>Step 2: 分析與分級結果</h2>
+            <div id="highlightedArticle">分析後此處將顯示標記文章...</div>
+            <hr>
             <div id="output"></div>
         </div>
-
     </div>
 
     <script>
-        /* 定義常用單字 (Stop Words)，避免標記簡單的字 */
-        const STOP_WORDS = new Set([
-            "i", "you", "he", "she", "it", "we", "they",
-            "is", "am", "are", "was", "were",
-            "a", "an", "the",
-            "and", "or", "but",
-            "to", "of", "in", "on", "at", "for", "with", "as",
-            "do", "does", "did", "be", "been", "have", "has"
-        ]);
+        let currentVocabulary = null;
 
-        /* 分析函式 */
         async function analyze() {
-            let text = document.getElementById("textInput").value;
+            const text = document.getElementById("textInput").value;
             if (!text.trim()) return;
 
             const outputDiv = document.getElementById("output");
-            const articleDiv = document.getElementById("highlightedArticle");
-
-            outputDiv.innerHTML = "正在分析中...";
+            outputDiv.innerHTML = "系統正在進行 NLP 語義分析與難度分級...";
 
             try {
                 const response = await fetch('/analyze', {
@@ -139,36 +51,43 @@
                     body: JSON.stringify({ text: text })
                 });
                 const data = await response.json();
+                currentVocabulary = data.vocabulary;
 
-                if (data.highlighted) {
-                    articleDiv.innerHTML = data.highlighted;
-                } else {
-                    articleDiv.innerHTML = "解析失敗：後端未回傳文章內容";
+                document.getElementById("highlightedArticle").innerHTML = data.highlighted;
+                document.getElementById("pdfBtn").style.display = "inline-block";
+
+                let html = "";
+                for (let word in data.vocabulary) {
+                    let item = data.vocabulary[word];
+                    html += `
+                        <div class="word-card">
+                            <span class="level-tag">${item.level}</span><br>
+                            <b style="font-size: 1.3em;">${word}</b> <small>${item.phonetic}</small>
+                            <div style="color: #d35400; margin: 5px 0;">中文：${item.chinese}</div>
+                            <div style="font-size: 0.9em; color: #666;">解釋：${item.definition}</div>
+                        </div>`;
                 }
-
-                let resultHTML = "";
-                if (data.vocabulary) {
-                    for (let word in data.vocabulary) {
-                        let item = data.vocabulary[word];
-                        resultHTML += `
-                    <div class="word" style="border-bottom: 1px solid #ccc; padding: 10px;">
-                        <b style="font-size: 1.2em; color: #4a90e2;">${word}</b> 
-                        <span style="color: #666;">[${item.pos}] / ${item.phonetic}</span><br>
-                        <div style="color: #e67e22; font-weight: bold;">中文：${item.chinese}</div>
-                        <div style="font-size: 0.9em; color: #555;">解釋：${item.definition}</div>
-                        <small>出現次數：${item.count}</small>
-                    </div>`;
-                    }
-                }
-                outputDiv.innerHTML = resultHTML || "未發現重要單字。";
-
-            } catch (error) {
-                outputDiv.innerHTML = "❌ 錯誤：無法連線到伺服器。";
-                console.error(error);
+                outputDiv.innerHTML = html;
+            } catch (e) {
+                outputDiv.innerHTML = "❌ 連線失敗，請確認後端是否啟動。";
             }
         }
+
+        async function exportPDF() {
+            if (!currentVocabulary) return;
+            const response = await fetch('/export_pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vocabulary: currentVocabulary })
+            });
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "適性化英語學習教案.pdf";
+            document.body.appendChild(a);
+            a.click();
+        }
     </script>
-
 </body>
-
 </html>
