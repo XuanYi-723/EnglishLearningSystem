@@ -6,3 +6,4 @@ spacy==3.7.4
 google-generativeai
 fpdf2
 gunicorn
+#123456
