@@ -16,7 +16,7 @@ CORS(app)
 
 # --- Gemini AI 設定 ---
 # 建議在 Render 的 Environment Variables 設定 GOOGLE_API_KEY
-GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY", "你的_GEMINI_API_KEY_放這裡")
+GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY", "AIzaSyAPT3ZhTSUVQmBAzh4xzwVXyx35TivHSUA")
 genai.configure(api_key=GENAI_API_KEY)
 gemini_model = genai.GenerativeModel('gemini-1.5-flash') # 使用快又省的 flash 版本
 
