@@ -15,10 +15,15 @@ app = Flask(__name__)
 CORS(app)
 
 # --- Gemini AI 設定 ---
-# 建議在 Render 的 Environment Variables 設定 GOOGLE_API_KEY
-GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY", "AIzaSyAPT3ZhTSUVQmBAzh4xzwVXyx35TivHSUA")
+# 從雲端平台（Railway 或 Render）的 Variables 抓取金鑰
+GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY")
+
+if not GENAI_API_KEY:
+    # 如果沒設定變數，系統會報錯提醒你，而不是曝露金鑰
+    raise ValueError("找不到 GOOGLE_API_KEY，請在雲端平台的 Variables 中設定！")
+
 genai.configure(api_key=GENAI_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-1.5-flash') # 使用快又省的 flash 版本
+gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 
 try:
     nlp = spacy.load("en_core_web_sm")
