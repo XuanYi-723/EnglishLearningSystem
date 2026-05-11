@@ -18,7 +18,7 @@ CORS(app)
 GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 if GENAI_API_KEY:
     genai.configure(api_key=GENAI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+    gemini_model = genai.GenerativeModel('gemini-3-flash-preview')
 else:
     print("警告：找不到 GOOGLE_API_KEY 環境變數")
 
