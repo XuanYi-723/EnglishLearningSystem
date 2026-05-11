@@ -1,7 +1,8 @@
 flask
 flask-cors
 requests
-deep_translator
+deep-translator
 spacy==3.7.4
 google-generativeai
 fpdf2
+gunicorn
