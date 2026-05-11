@@ -20,7 +20,7 @@ GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 if not GENAI_API_KEY:
     # 如果沒設定變數，系統會報錯提醒你，而不是曝露金鑰
-    raise ValueError("找不到 GOOGLE_API_KEY，請在雲端平台的 Variables 中設定！")
+    print("警告：找不到 GOOGLE_API_KEY 環境變數")
 
 genai.configure(api_key=GENAI_API_KEY)
 gemini_model = genai.GenerativeModel('gemini-1.5-flash')
