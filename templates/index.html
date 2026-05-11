@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>智慧英語學習系統 </title>
+    <title>智慧英語學習系統 - Gemini AI 版</title>
     <style>
         body { margin: 0; font-family: 'Segoe UI', Arial; background-color: #f1f5f9; color: #1e293b; }
         .container { display: flex; height: 100vh; }
@@ -12,50 +12,77 @@
         .level-btn { background: #f1f5f9; color: #475569; border: none; padding: 10px 18px; margin: 5px; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .level-btn.active { background: #3b82f6; color: white; }
         .action-btn { background: #f59e0b; color: white; border: none; padding: 15px; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 15px; }
+        
+        /* 紫色系列代表 AI 功能 */
         .game-btn { background: #8b5cf6; color: white; border: none; padding: 12px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; display: none; }
         .csv-btn { background: #10b981; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; margin-top: 10px; width: 100%; display: none; }
         
-        /* 遊戲區域樣式 */
         #gameOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; padding: 20px; box-sizing: border-box; color: white; text-align: center; overflow-y: auto; }
         .game-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; max-width: 1000px; margin: 20px auto; }
         .card { background: white; color: #333; padding: 15px; border-radius: 12px; cursor: pointer; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.3s; border: 4px solid transparent; }
         .card img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-bottom: 5px; }
-        .card.selected { border-color: #3b82f6; transform: scale(1.05); }
+        .card.selected { border-color: #8b5cf6; transform: scale(1.05); }
         .card.matched { background: #dcfce7; cursor: default; opacity: 0.6; }
-        .card p { margin: 5px 0; font-size: 14px; text-align: center; }
 
         mark { background: #fef08a; padding: 2px; border-radius: 4px; }
-        .word-card { background: white; padding: 15px; margin-bottom: 10px; border-radius: 12px; border-left: 5px solid #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        
+        /* 優化後的單字卡片 */
+        .word-card { 
+            background: white; 
+            padding: 20px; 
+            margin-bottom: 15px; 
+            border-radius: 15px; 
+            border-left: 8px solid #8b5cf6; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        }
+        .ai-tag {
+            background: #ede9fe;
+            color: #7c3aed;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .ai-content {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 0.95em;
+            line-height: 1.6;
+            color: #334155;
+        }
     </style>
 </head>
 <body>
     <div id="gameOverlay">
         <h1>🎴 單字牌卡連連看</h1>
         <p>請點選一個「英文卡」和一個「中文卡」來配對！</p>
-        <button onclick="closeGame()" style="padding: 10px 20px; border-radius: 8px; cursor: pointer;">結束遊戲</button>
+        <button onclick="closeGame()" style="padding: 10px 20px; border-radius: 8px; cursor: pointer; border:none; background:#ef4444; color:white; font-weight:bold;">結束遊戲</button>
         <div id="gameGrid" class="game-grid"></div>
     </div>
 
     <div class="container">
         <div class="left">
-            <h2>1. 輸入文章內容</h2>
-            <textarea id="textInput" placeholder="請貼上英文文章..."></textarea>
+            <h2>1. 輸入教材文章</h2>
+            <textarea id="textInput" placeholder="請貼上欲分析的英文文章..."></textarea>
             
-            <h2 style="margin-top:20px;">2. 選擇難度</h2>
+            <h2 style="margin-top:20px;">2. 選擇學生程度</h2>
             <button onclick="selectLevel('簡單', this)" class="level-btn">簡單</button>
             <button onclick="selectLevel('中等', this)" class="level-btn">中等</button>
             <button onclick="selectLevel('困難', this)" class="level-btn">困難</button>
             <button onclick="selectLevel('全部', this)" class="level-btn">全部</button>
 
             <div id="actionArea" style="display:none;">
-                <button onclick="analyze()" class="action-btn">🚀 開始智慧分析</button>
+                <button onclick="analyze()" class="action-btn">🚀 啟動 Gemini AI 分析</button>
                 <button id="gameBtn" class="game-btn" onclick="openGame()">🎮 玩牌卡連連看</button>
                 <button id="csvBtn" class="csv-btn" onclick="exportCSV()">📁 下載學習清單 (CSV)</button>
             </div>
         </div>
         <div class="right">
-            <h2>3. 分析與教材生成</h2>
-            <div id="highlightedArticle" style="background:white; padding:20px; border-radius:10px; margin-bottom:15px;">等待分析中...</div>
+            <h2>3. AI 導師分析成果</h2>
+            <div id="highlightedArticle" style="background:white; padding:20px; border-radius:10px; margin-bottom:15px; line-height:1.6;">等待分析...</div>
             <div id="output"></div>
         </div>
     </div>
@@ -75,31 +102,40 @@
         async function analyze() {
             const text = document.getElementById("textInput").value;
             const outputDiv = document.getElementById("output");
-            outputDiv.innerHTML = "AI 分析中，請稍候...";
+            outputDiv.innerHTML = "<div style='text-align:center;'>🔮 Gemini AI 正在備課中，請稍候...</div>";
 
-            const response = await fetch('/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: text, level: currentLevel })
-            });
-            const data = await response.json();
-            currentVocab = data.vocabulary;
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text, level: currentLevel })
+                });
+                const data = await response.json();
+                currentVocab = data.vocabulary;
 
-            document.getElementById("highlightedArticle").innerHTML = data.highlighted;
-            document.getElementById("gameBtn").style.display = "block";
-            document.getElementById("csvBtn").style.display = "block";
+                document.getElementById("highlightedArticle").innerHTML = data.highlighted;
+                document.getElementById("gameBtn").style.display = "block";
+                document.getElementById("csvBtn").style.display = "block";
 
-            let html = "";
-            for (let word in data.vocabulary) {
-                let item = data.vocabulary[word];
-                html += `<div class="word-card">
-                    <b style="font-size:1.2em;">${word.toUpperCase()}</b> (${item.level})<br>
-                    <span style="color:#666;">${item.pos} | ${item.phonetic}</span><br>
-                    <b style="color:#c2410c;">${item.chinese}</b><br>
-                    <i style="font-size:0.9em; color:#444;">Ex: ${item.example}</i>
-                </div>`;
+                let html = "";
+                for (let word in data.vocabulary) {
+                    let item = data.vocabulary[word];
+                    // 將換行符號轉為網頁換行
+                    let formattedDef = item.definition.replace(/\n/g, '<br>');
+                    
+                    html += `<div class="word-card">
+                        <b style="font-size:1.3em;">${word.toUpperCase()}</b> 
+                        <span class="ai-tag">Gemini AI 導師</span>
+                        <span style="font-size:0.8em; color:#94a3b8; margin-left:5px;">(${item.level})</span><br>
+                        <span style="color:#64748b;">${item.pos} | ${item.phonetic}</span><br>
+                        <b style="color:#c2410c; display:block; margin-top:5px;">${item.chinese}</b>
+                        <div class="ai-content">${formattedDef}</div>
+                    </div>`;
+                }
+                outputDiv.innerHTML = html || "找不到單字。";
+            } catch (e) {
+                outputDiv.innerHTML = "<div style='color:red;'>連線失敗，請確保後端已正確啟動。</div>";
             }
-            outputDiv.innerHTML = html || "找不到單字。";
         }
 
         function openGame() {
@@ -108,22 +144,20 @@
             document.getElementById("gameOverlay").style.display = "block";
             
             let cards = [];
-            let words = Object.keys(currentVocab).slice(0, 6); // 取前6個單字做遊戲
+            let words = Object.keys(currentVocab).slice(0, 6);
             
             words.forEach(word => {
                 const info = currentVocab[word];
-                // 英文卡 (含圖片或例句)
                 cards.push({
                     type: 'en',
                     id: word,
-                    content: info.is_abstract ? `<p style="font-size:12px;">"${info.example}"</p>` : `<img src="https://loremflickr.com/150/150/${word}">`,
+                    content: info.is_abstract ? `<p style="font-size:11px; padding:5px;">"${word.toUpperCase()}"</p>` : `<img src="https://loremflickr.com/150/150/${word}">`,
                     label: word.toUpperCase()
                 });
-                // 中文卡
                 cards.push({
                     type: 'zh',
                     id: word,
-                    content: `<h2 style="color:#c2410c;">${info.chinese}</h2>`,
+                    content: `<h2 style="color:#c2410c; margin:0;">${info.chinese}</h2>`,
                     label: "中文意思"
                 });
             });
@@ -131,7 +165,7 @@
             cards.sort(() => Math.random() - 0.5).forEach(card => {
                 const div = document.createElement("div");
                 div.className = "card";
-                div.innerHTML = `<strong>${card.label}</strong>${card.content}`;
+                div.innerHTML = `<small style="color:#94a3b8; margin-bottom:5px;">${card.label}</small>${card.content}`;
                 div.onclick = () => handleCardClick(div, card);
                 grid.appendChild(div);
             });
@@ -147,12 +181,10 @@
                 firstCard = { div, card };
             } else {
                 if (firstCard.card.id === card.id && firstCard.card.type !== card.type) {
-                    // 配對成功
                     div.classList.replace('selected', 'matched');
                     firstCard.div.classList.replace('selected', 'matched');
                     firstCard = null;
                 } else {
-                    // 配對失敗
                     setTimeout(() => {
                         div.classList.remove('selected');
                         firstCard.div.classList.remove('selected');
@@ -163,7 +195,20 @@
         }
 
         function closeGame() { document.getElementById("gameOverlay").style.display = "none"; }
-        async function exportCSV() { /* 同前 ... */ }
+
+        async function exportCSV() {
+            const response = await fetch('/export_data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vocabulary: currentVocab })
+            });
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "Gemini智慧單字學習清單.csv";
+            a.click();
+        }
     </script>
 </body>
 </html>
