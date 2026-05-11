@@ -5,15 +5,20 @@ import spacy
 import requests
 from deep_translator import GoogleTranslator 
 import re
-import time
 import sqlite3
 import os
 import csv
 import io
-import random
+import google.generativeai as genai
 
 app = Flask(__name__)
 CORS(app)
+
+# --- Gemini AI 設定 ---
+# 建議在 Render 的 Environment Variables 設定 GOOGLE_API_KEY
+GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY", "你的_GEMINI_API_KEY_放這裡")
+genai.configure(api_key=GENAI_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-1.5-flash') # 使用快又省的 flash 版本
 
 try:
     nlp = spacy.load("en_core_web_sm")
@@ -23,8 +28,18 @@ except:
     nlp = spacy.load("en_core_web_sm")
 
 @functools.lru_cache(maxsize=1024)
+def get_gemini_explanation(word):
+    """呼叫 Gemini 生成適合長輩的解釋與健康例句"""
+    prompt = f"你是一位教導高齡者的英文老師。請用簡單溫暖的中文解釋單字 '{word}'，並造一個跟『健康生活』或『快樂心態』有關的簡單英文例句。"
+    try:
+        response = gemini_model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"AI 老師正在備課中... (暫時提供字典定義)"
+
+@functools.lru_cache(maxsize=1024)
 def get_cached_translation(text):
-    if not text or text == "No definition found": return "無解釋"
+    if not text: return "無解釋"
     try:
         return GoogleTranslator(source='auto', target='zh-TW').translate(text)
     except:
@@ -38,18 +53,10 @@ def get_cached_word_info(word):
         if response.status_code == 200:
             data = response.json()
             phonetic = data[0].get('phonetic', 'N/A')
-            # 抓取第一筆例句
-            example = "No example available."
-            for meaning in data[0]['meanings']:
-                for definition in meaning['definitions']:
-                    if definition.get('example'):
-                        example = definition.get('example')
-                        break
-            definition = data[0]['meanings'][0]['definitions'][0].get('definition', 'No definition found')
-            return phonetic, definition, example
+            return phonetic
     except:
         pass
-    return "N/A", "No definition found", "No example available."
+    return "N/A"
 
 def get_word_level(word):
     length = len(word)
@@ -82,17 +89,19 @@ def analyze():
                 current_level = get_word_level(word_lower)
                 if target_level == "全部" or current_level == target_level:
                     if word_lower not in vocab_results:
-                        phonetic, eng_def, example = get_cached_word_info(word_lower)
+                        phonetic = get_cached_word_info(word_lower)
                         chinese_word = get_cached_translation(word_lower)
-                        chinese_def = get_cached_translation(eng_def)
+                        
+                        # 重點：使用 Gemini 生成 AI 老師的解釋
+                        ai_explanation = get_gemini_explanation(word_lower)
 
-                        # 判斷是否為抽象詞 (非名詞則視為抽象)
                         is_abstract = token.pos_ not in ["NOUN", "PROPN"]
 
                         vocab_results[word_lower] = {
                             "count": 1, "pos": token.pos_, "phonetic": phonetic,
-                            "definition": chinese_def, "chinese": chinese_word, 
-                            "level": current_level, "example": example,
+                            "definition": ai_explanation, # 存入 Gemini 的內容
+                            "chinese": chinese_word, 
+                            "level": current_level,
                             "is_abstract": is_abstract
                         }
                         c.execute("INSERT OR REPLACE INTO vocab_history VALUES (?, ?, ?, (SELECT appearance_count FROM vocab_history WHERE word=?)+1)", 
@@ -113,11 +122,11 @@ def export_csv():
     output = io.StringIO()
     output.write('\ufeff')
     writer = csv.writer(output)
-    writer.writerow(['單字', '難度', '詞性', '音標', '中文翻譯', '例句'])
+    writer.writerow(['單字', '難度', '詞性', '音標', '中文翻譯', 'AI老師解釋與例句'])
     for word, info in data.items():
-        writer.writerow([word.upper(), info['level'], info['pos'], info['phonetic'], info['chinese'], info['example']])
+        writer.writerow([word.upper(), info['level'], info['pos'], info['phonetic'], info['chinese'], info['definition']])
     output.seek(0)
-    return send_file(io.BytesIO(output.getvalue().encode('utf-8-sig')), mimetype='text/csv', as_attachment=True, download_name='智慧單字學習清單.csv')
+    return send_file(io.BytesIO(output.getvalue().encode('utf-8-sig')), mimetype='text/csv', as_attachment=True, download_name='智慧學習清單_AI版.csv')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
