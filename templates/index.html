@@ -5,75 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智慧英語學習系統 - Gemini AI 導師版</title>
     <style>
-        body { margin: 0; font-family: 'Segoe UI', "Microsoft JhengHei", Arial, sans-serif; background-color: #f1f5f9; color: #1e293b; }
+        body { margin: 0; font-family: 'Segoe UI', "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #1e293b; }
         .container { display: flex; height: 100vh; }
         .left { flex: 4; padding: 25px; background: white; border-right: 1px solid #e2e8f0; overflow-y: auto; }
         .right { flex: 6; padding: 25px; overflow-y: auto; }
         
-        h2 { color: #334155; border-left: 5px solid #8b5cf6; padding-left: 10px; }
-        textarea { width: 100%; height: 200px; padding: 15px; border-radius: 12px; border: 2px solid #cbd5e1; font-size: 18px; box-sizing: border-box; resize: none; }
+        h2 { color: #475569; border-left: 6px solid #8b5cf6; padding-left: 12px; margin-bottom: 20px; }
+        textarea { width: 100%; height: 220px; padding: 15px; border-radius: 12px; border: 2px solid #e2e8f0; font-size: 18px; line-height: 1.6; box-sizing: border-box; }
         
-        /* 選項按鈕樣式 */
-        .level-btn { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 12px 20px; margin: 5px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .level-btn.active { background: #8b5cf6; color: white; border-color: #7c3aed; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3); }
+        .level-btn { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 12px 18px; margin: 4px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .level-btn.active { background: #8b5cf6; color: white; border-color: #7c3aed; }
         
-        .action-btn { background: #f59e0b; color: white; border: none; padding: 18px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 15px; transition: 0.3s; }
-        .action-btn:hover { background: #d97706; }
-        
-        .game-btn { background: #8b5cf6; color: white; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; display: none; }
+        .action-btn { background: #f59e0b; color: white; border: none; padding: 20px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 20px; }
+        .game-btn { background: #8b5cf6; color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; display: none; }
         .csv-btn { background: #10b981; color: white; border: none; padding: 12px; border-radius: 12px; cursor: pointer; margin-top: 10px; width: 100%; display: none; }
 
-        /* 文章標記樣式 */
-        #highlightedArticle { background: white; padding: 25px; border-radius: 15px; margin-bottom: 20px; line-height: 1.8; font-size: 1.1em; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        mark { background: #fef08a; padding: 2px 5px; border-radius: 4px; font-weight: bold; color: #b45309; }
+        #highlightedArticle { background: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; line-height: 2; font-size: 1.2em; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        mark { background: #fef08a; padding: 2px 4px; border-radius: 4px; font-weight: bold; color: #b45309; }
 
-        /* 單字卡片樣式 */
-        .word-card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 15px; border-left: 8px solid #8b5cf6; box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; }
-        .ai-tag { background: #ede9fe; color: #7c3aed; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; position: absolute; right: 20px; top: 20px; }
-        .ai-content { background: #f8fafc; padding: 15px; border-radius: 10px; margin-top: 10px; font-size: 1.05em; line-height: 1.6; color: #334155; border: 1px dashed #cbd5e1; }
+        .word-card { background: white; padding: 25px; margin-bottom: 20px; border-radius: 16px; border-left: 10px solid #8b5cf6; box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; }
+        .ai-tag { background: #ede9fe; color: #7c3aed; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; position: absolute; right: 20px; top: 20px; }
+        .ai-content { background: #f8fafc; padding: 15px; border-radius: 12px; margin-top: 12px; font-size: 1.1em; line-height: 1.6; color: #334155; border: 1px solid #e2e8f0; }
         
-        /* 遊戲區域樣式 */
-        #gameOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 1000; padding: 20px; box-sizing: border-box; color: white; text-align: center; overflow-y: auto; }
-        .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; max-width: 1100px; margin: 30px auto; }
-        .card { background: white; color: #1e293b; padding: 20px; border-radius: 16px; cursor: pointer; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.3s; border: 5px solid transparent; box-shadow: 0 8px 15px rgba(0,0,0,0.2); }
-        .card img { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; }
-        .card.selected { border-color: #8b5cf6; transform: translateY(-5px); }
-        .card.matched { background: #dcfce7; color: #166534; cursor: default; opacity: 0.7; border-color: #22c55e; }
-        
-        .close-game-btn { padding: 12px 30px; border-radius: 30px; cursor: pointer; border: none; background: #ef4444; color: white; font-weight: bold; font-size: 18px; }
+        #gameOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.98); z-index: 2000; padding: 30px; box-sizing: border-box; color: white; text-align: center; }
+        .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; max-width: 1200px; margin: 40px auto; }
+        .card { background: white; color: #1e293b; padding: 25px; border-radius: 18px; cursor: pointer; min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 4px solid transparent; transition: 0.2s; }
+        .card.selected { border-color: #8b5cf6; transform: scale(1.05); }
+        .card.matched { background: #dcfce7; color: #166534; opacity: 0.6; cursor: default; border-color: #22c55e; }
+        .close-game-btn { padding: 12px 40px; border-radius: 30px; border: none; background: #ef4444; color: white; font-weight: bold; font-size: 18px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div id="gameOverlay">
-        <h1>🎴 英語單字趣味連連看</h1>
-        <p style="font-size: 1.2em;">請點選一個「英文圖像」和一個「中文意思」來配對！</p>
-        <button onclick="closeGame()" class="close-game-btn">結束遊戲並返回</button>
+        <h1>🧠 智慧單字配對挑戰</h1>
+        <p style="font-size: 1.3em;">請找出對應的「英文單字」與「中文意思」！</p>
+        <button onclick="closeGame()" class="close-game-btn">返回學習介面</button>
         <div id="gameGrid" class="game-grid"></div>
     </div>
 
     <div class="container">
         <div class="left">
-            <h2>1. 輸入教材文章</h2>
-            <textarea id="textInput" placeholder="請在此貼上英文短文或句子..."></textarea>
+            <h2>1. 貼上文章內容</h2>
+            <textarea id="textInput" placeholder="請在此輸入英文文章..."></textarea>
             
-            <h2 style="margin-top:30px;">2. 選擇學習難度</h2>
+            <h2 style="margin-top:35px;">2. 設定學習等級</h2>
             <div id="levelSelector">
-                <button onclick="selectLevel('簡單', this)" class="level-btn">簡單 (4字母以下)</button>
-                <button onclick="selectLevel('中等', this)" class="level-btn">中等 (5-7字母)</button>
-                <button onclick="selectLevel('困難', this)" class="level-btn">困難 (8字母以上)</button>
-                <button onclick="selectLevel('全部', this)" class="level-btn active">全部顯示</button>
+                <button onclick="selectLevel('簡單', this)" class="level-btn">簡單</button>
+                <button onclick="selectLevel('中等', this)" class="level-btn">中等</button>
+                <button onclick="selectLevel('困難', this)" class="level-btn">困難</button>
+                <button onclick="selectLevel('全部', this)" class="level-btn active">全部</button>
             </div>
 
-            <div id="actionArea" style="margin-top: 30px;">
-                <button onclick="analyze()" class="action-btn">🚀 啟動 Gemini AI 分析</button>
-                <button id="gameBtn" class="game-btn" onclick="openGame()">🎮 挑戰牌卡連連看</button>
-                <button id="csvBtn" class="csv-btn" onclick="exportCSV()">📁 下載學習清單 (CSV)</button>
-            </div>
+            <button onclick="analyze()" class="action-btn">🚀 啟動 AI 智慧老師</button>
+            <button id="gameBtn" class="game-btn" onclick="openGame()">🎮 挑戰單字連連看</button>
+            <button id="csvBtn" class="csv-btn" onclick="exportCSV()">📁 下載單字表</button>
         </div>
 
         <div class="right">
-            <h2>3. AI 導師分析成果</h2>
-            <div id="highlightedArticle">等待分析中...</div>
+            <h2>3. AI 學習報告</h2>
+            <div id="highlightedArticle">等待系統分析中...</div>
             <div id="output"></div>
         </div>
     </div>
@@ -91,10 +81,10 @@
 
         async function analyze() {
             const text = document.getElementById("textInput").value;
-            if (!text) return alert("請先輸入文章內容！");
-
+            if (!text) return alert("請輸入文字！");
+            
             const outputDiv = document.getElementById("output");
-            outputDiv.innerHTML = "<div style='text-align:center; padding:50px;'><h3 style='color:#8b5cf6;'>🔮 Gemini AI 老師正在閱讀並編寫教材...</h3><p>這大約需要 3-5 秒，請稍候。</p></div>";
+            outputDiv.innerHTML = "<div style='text-align:center; padding:60px;'><h3>🔮 AI 老師正在編寫個人化教材...</h3></div>";
 
             try {
                 const response = await fetch('/analyze', {
@@ -112,23 +102,18 @@
                 let html = "";
                 for (let word in data.vocabulary) {
                     let item = data.vocabulary[word];
-                    let formattedDef = item.definition.replace(/\n/g, '<br>');
-                    
                     html += `<div class="word-card">
-                        <span class="ai-tag">Gemini AI 智慧生成</span>
-                        <b style="font-size:1.4em; color:#1e293b;">${word.toUpperCase()}</b> 
-                        <span style="font-size:0.9em; color:#94a3b8; margin-left:10px;">[ ${item.level} ]</span><br>
+                        <span class="ai-tag">Gemini AI 教學</span>
+                        <b style="font-size:1.5em;">${word.toUpperCase()}</b> 
+                        <span style="color:#94a3b8; margin-left:10px;">[${item.level}]</span><br>
                         <span style="color:#64748b; font-size:1.1em;">${item.pos} | ${item.phonetic}</span><br>
-                        <b style="color:#c2410c; display:block; margin-top:8px; font-size:1.2em;">${item.chinese}</b>
-                        <div class="ai-content">${formattedDef}</div>
+                        <b style="color:#c2410c; display:block; margin-top:10px; font-size:1.3em;">${item.chinese}</b>
+                        <div class="ai-content">${item.definition.replace(/\n/g, '<br>')}</div>
                     </div>`;
                 }
-                outputDiv.innerHTML = html || "在此難度下找不到合適單字，請嘗試更換難度或輸入更長的內容。";
-                
-                // 自動滾動到頂部
-                document.querySelector('.right').scrollTop = 0;
+                outputDiv.innerHTML = html || "未發現符合等級的單字。";
             } catch (e) {
-                outputDiv.innerHTML = "<div style='color:red; padding:20px;'>❌ 發生錯誤：無法連線至 AI 伺服器，請檢查 API 金鑰與網路設定。</div>";
+                outputDiv.innerHTML = "<div style='color:red; padding:20px;'>伺服器連線失敗，請檢查金鑰設定。</div>";
             }
         }
 
@@ -138,30 +123,18 @@
             document.getElementById("gameOverlay").style.display = "block";
             
             let cards = [];
-            // 挑選最多 8 個單字來玩遊戲
-            let wordKeys = Object.keys(currentVocab);
-            let words = wordKeys.sort(() => Math.random() - 0.5).slice(0, 8);
+            let words = Object.keys(currentVocab).sort(() => Math.random() - 0.5).slice(0, 8);
             
             words.forEach(word => {
                 const info = currentVocab[word];
-                
-                // 英文端：智慧判定圖片或文字
-                let enContent = "";
-                if (info.image_url && !info.is_abstract) {
-                    enContent = `<img src="${info.image_url}" alt="${word}">`;
-                } else {
-                    enContent = `<h2 style="color:#3b82f6; margin:0; font-size:2em;">${word.toUpperCase()}</h2>`;
-                }
-
-                cards.push({ type: 'en', id: word, content: enContent, label: "英文教材" });
-                cards.push({ type: 'zh', id: word, content: `<h2 style="color:#c2410c; margin:0;">${info.chinese}</h2>`, label: "中文意思" });
+                cards.push({ type: 'en', id: word, content: `<h2 style="color:#3b82f6; font-size:2.2em;">${word.toUpperCase()}</h2>`, label: "英文" });
+                cards.push({ type: 'zh', id: word, content: `<h2 style="color:#c2410c;">${info.chinese}</h2>`, label: "中文" });
             });
 
-            // 隨機洗牌顯示
             cards.sort(() => Math.random() - 0.5).forEach(card => {
                 const div = document.createElement("div");
                 div.className = "card";
-                div.innerHTML = `<small style="color:#94a3b8; font-weight:bold;">${card.label}</small>${card.content}`;
+                div.innerHTML = `<small style="color:#94a3b8; font-weight:bold; margin-bottom:10px;">${card.label}</small>${card.content}`;
                 div.onclick = () => handleCardClick(div, card);
                 grid.appendChild(div);
             });
@@ -169,25 +142,22 @@
 
         function handleCardClick(div, card) {
             if (div.classList.contains('matched')) return;
-            if (firstCard && firstCard.div === div) return;
-
             div.classList.add('selected');
 
             if (!firstCard) {
                 firstCard = { div, card };
             } else {
+                if (firstCard.div === div) return;
                 if (firstCard.card.id === card.id && firstCard.card.type !== card.type) {
-                    // 配對成功：變綠色
                     div.classList.replace('selected', 'matched');
                     firstCard.div.classList.replace('selected', 'matched');
                     firstCard = null;
                 } else {
-                    // 配對失敗：翻回去
                     setTimeout(() => {
                         div.classList.remove('selected');
                         firstCard.div.classList.remove('selected');
                         firstCard = null;
-                    }, 500);
+                    }, 400);
                 }
             }
         }
@@ -204,7 +174,7 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = "智慧英語學習單_長輩專用.csv";
+            a.download = "智慧英語單字清單.csv";
             a.click();
         }
     </script>
