@@ -16,7 +16,8 @@
         .level-btn { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 12px 18px; margin: 4px; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .level-btn.active { background: #8b5cf6; color: white; border-color: #7c3aed; }
         
-        .action-btn { background: #f59e0b; color: white; border: none; padding: 20px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 20px; }
+        .action-btn { background: #f59e0b; color: white; border: none; padding: 20px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 20px; transition: background 0.3s;}
+        .action-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
         .game-btn { background: #8b5cf6; color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; display: none; }
         .csv-btn { background: #10b981; color: white; border: none; padding: 12px; border-radius: 12px; cursor: pointer; margin-top: 10px; width: 100%; display: none; }
 
@@ -27,7 +28,7 @@
         .ai-tag { background: #ede9fe; color: #7c3aed; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; position: absolute; right: 20px; top: 20px; }
         .ai-content { background: #f8fafc; padding: 15px; border-radius: 12px; margin-top: 12px; font-size: 1.1em; line-height: 1.6; color: #334155; border: 1px solid #e2e8f0; }
         
-        #gameOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.98); z-index: 2000; padding: 30px; box-sizing: border-box; color: white; text-align: center; }
+        #gameOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.98); z-index: 2000; padding: 30px; box-sizing: border-box; color: white; text-align: center; overflow-y: auto; }
         .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; max-width: 1200px; margin: 40px auto; }
         .card { background: white; color: #1e293b; padding: 25px; border-radius: 18px; cursor: pointer; min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 4px solid transparent; transition: 0.2s; }
         .card.selected { border-color: #8b5cf6; transform: scale(1.05); }
@@ -56,7 +57,7 @@
                 <button onclick="selectLevel('全部', this)" class="level-btn active">全部</button>
             </div>
 
-            <button onclick="analyze()" class="action-btn">開始執行</button>
+            <button id="analyzeBtn" onclick="analyze()" class="action-btn">開始執行</button>
             <button id="gameBtn" class="game-btn" onclick="openGame()">單字連連看</button>
             <button id="csvBtn" class="csv-btn" onclick="exportCSV()">下載單字表</button>
         </div>
@@ -80,11 +81,20 @@
         }
 
         async function analyze() {
-            const text = document.getElementById("textInput").value;
+            const text = document.getElementById("textInput").value.trim();
             if (!text) return alert("請輸入文字！");
             
             const outputDiv = document.getElementById("output");
-            outputDiv.innerHTML = "<div style='text-align:center; padding:60px;'><h3>🔮 AI 老師正在編寫個人化教材...</h3></div>";
+            const analyzeBtn = document.getElementById("analyzeBtn");
+            
+            // 防呆機制：停用按鈕，避免重複點擊
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerText = "⏳ AI 老師備課中...";
+            outputDiv.innerHTML = "<div style='text-align:center; padding:60px;'><h3>🔮 正在分析文章並編寫溫馨教材，請稍候...</h3></div>";
+            
+            // 隱藏之前的功能按鈕
+            document.getElementById("gameBtn").style.display = "none";
+            document.getElementById("csvBtn").style.display = "none";
 
             try {
                 const response = await fetch('/analyze', {
@@ -92,12 +102,21 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: text, level: currentLevel })
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`伺服器回應錯誤: ${response.status}`);
+                }
+                
                 const data = await response.json();
                 currentVocab = data.vocabulary;
 
                 document.getElementById("highlightedArticle").innerHTML = data.highlighted;
-                document.getElementById("gameBtn").style.display = "block";
-                document.getElementById("csvBtn").style.display = "block";
+                
+                // 確認有單字才顯示遊戲和下載按鈕
+                if (Object.keys(currentVocab).length > 0) {
+                    document.getElementById("gameBtn").style.display = "block";
+                    document.getElementById("csvBtn").style.display = "block";
+                }
 
                 let html = "";
                 for (let word in data.vocabulary) {
@@ -111,26 +130,39 @@
                         <div class="ai-content">${item.definition.replace(/\n/g, '<br>')}</div>
                     </div>`;
                 }
-                outputDiv.innerHTML = html || "未發現符合等級的單字。";
+                outputDiv.innerHTML = html || "<div style='text-align:center; padding:40px; color:#64748b;'>未發現符合此難度等級的單字。</div>";
             } catch (e) {
-                outputDiv.innerHTML = "<div style='color:red; padding:20px;'>伺服器連線失敗，請檢查金鑰設定。</div>";
+                console.error(e);
+                outputDiv.innerHTML = `<div style='color:#ef4444; background:#fef2f2; padding:20px; border-radius:12px; border:1px solid #f87171;'>
+                    <b>伺服器連線失敗</b><br><br>請檢查後端伺服器是否正常啟動，或是 API 金鑰設定是否正確。<br>詳細錯誤：${e.message}
+                </div>`;
+            } finally {
+                // 恢復按鈕狀態
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerText = "開始執行";
             }
         }
 
         function openGame() {
+            if (!currentVocab || Object.keys(currentVocab).length === 0) {
+                return alert("請先進行文章分析，且需有單字才能開始遊戲！");
+            }
+
             const grid = document.getElementById("gameGrid");
             grid.innerHTML = "";
             document.getElementById("gameOverlay").style.display = "block";
             
             let cards = [];
+            // 隨機選取最多 8 個單字來產生 16 張卡片
             let words = Object.keys(currentVocab).sort(() => Math.random() - 0.5).slice(0, 8);
             
             words.forEach(word => {
                 const info = currentVocab[word];
-                cards.push({ type: 'en', id: word, content: `<h2 style="color:#3b82f6; font-size:2.2em;">${word.toUpperCase()}</h2>`, label: "英文" });
-                cards.push({ type: 'zh', id: word, content: `<h2 style="color:#c2410c;">${info.chinese}</h2>`, label: "中文" });
+                cards.push({ type: 'en', id: word, content: `<h2 style="color:#3b82f6; font-size:2.2em; margin:0;">${word.toUpperCase()}</h2>`, label: "英文" });
+                cards.push({ type: 'zh', id: word, content: `<h2 style="color:#c2410c; margin:0;">${info.chinese}</h2>`, label: "中文" });
             });
 
+            // 洗牌並渲染卡片
             cards.sort(() => Math.random() - 0.5).forEach(card => {
                 const div = document.createElement("div");
                 div.className = "card";
@@ -147,12 +179,15 @@
             if (!firstCard) {
                 firstCard = { div, card };
             } else {
-                if (firstCard.div === div) return;
+                if (firstCard.div === div) return; // 點擊到同一張卡片
+                
                 if (firstCard.card.id === card.id && firstCard.card.type !== card.type) {
+                    // 配對成功
                     div.classList.replace('selected', 'matched');
                     firstCard.div.classList.replace('selected', 'matched');
                     firstCard = null;
                 } else {
+                    // 配對失敗，短暫延遲後翻回
                     setTimeout(() => {
                         div.classList.remove('selected');
                         firstCard.div.classList.remove('selected');
@@ -162,20 +197,34 @@
             }
         }
 
-        function closeGame() { document.getElementById("gameOverlay").style.display = "none"; }
+        function closeGame() { 
+            document.getElementById("gameOverlay").style.display = "none"; 
+            firstCard = null; // 重置遊戲狀態
+        }
 
         async function exportCSV() {
-            const response = await fetch('/export_data', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ vocabulary: currentVocab })
-            });
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "智慧英語單字清單.csv";
-            a.click();
+            if (!currentVocab) return;
+            try {
+                const response = await fetch('/export_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vocabulary: currentVocab })
+                });
+                
+                if (!response.ok) throw new Error("下載失敗");
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "智慧英語單字清單.csv";
+                document.body.appendChild(a); // Firefox 兼容性
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch(e) {
+                alert("匯出 CSV 時發生錯誤，請稍後再試。");
+            }
         }
     </script>
 </body>
