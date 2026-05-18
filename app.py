@@ -68,7 +68,7 @@ def get_batch_gemini_explanations(word_list):
     try:
         # 呼叫 generate_content 
         response = ai_client.models.generate_content(
-            model='gemini-1.5-flash', 
+            model='gemini-1.5-flash-latest', 
             contents=prompt
         )
         
