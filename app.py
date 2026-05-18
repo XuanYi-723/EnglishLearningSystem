@@ -72,8 +72,7 @@ def get_batch_gemini_explanations(word_list):
             contents=prompt
         )
         # 清理 Markdown 格式符號
-        clean_text = response.text.replace('```json', '').replace('
-```', '').strip()
+        clean_text = response.text.replace('```json', '').replace('```', '').strip()
         return json.loads(clean_text)
     except Exception as e:
         print(f"Gemini 批次分析出錯: {e}")
