@@ -1,1 +1,12 @@
+# 隔離環境變數與金鑰檔
 .env
+
+# 隔離 Python 自動產生的暫存快取資料夾
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 如果你有用虛擬環境，隔離虛擬環境資料夾
+venv/
+.venv/
+env/
