@@ -64,7 +64,7 @@ def get_batch_gemini_explanations(word_list):
     try:
         # 🌟 4. 使用 generate_content 並透過 response_mime_type 強制鎖定 JSON 輸出
         response = ai_client.models.generate_content(
-            model='gemini-1.5-flash', 
+            model='gemini-1.5-flash-latest', 
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
