@@ -10,8 +10,9 @@ import csv
 import io
 from dotenv import load_dotenv
 
-# 🌟 1. 換成最新版的 Google GenAI 套件
-from google import genai 
+# 🌟 1. 換成最新版的 Google GenAI 套件，並引入 types 以強制回傳 JSON
+from google import genai
+from google.genai import types
 
 app = Flask(__name__)
 CORS(app)
@@ -29,13 +30,8 @@ else:
     ai_client = None
     print("警告：找不到 GOOGLE_API_KEY 環境變數，AI 功能將無法運作")
 
-# 載入 NLP 模型進行單字過濾與分析
-try:
-    nlp = spacy.load("en_core_web_sm")
-except:
-    import spacy.cli
-    spacy.cli.download("en_core_web_sm")
-    nlp = spacy.load("en_core_web_sm")
+# 🌟 3. 移除容易出錯的動態下載邏輯，直接載入模型 (請透過 requirements.txt 安裝)
+nlp = spacy.load("en_core_web_sm")
 
 def get_batch_gemini_explanations(word_list):
     """
@@ -44,7 +40,7 @@ def get_batch_gemini_explanations(word_list):
     if not word_list or not ai_client:
         return {}
 
-    # 設定 AI 導師的 Prompt (稍微強化了指令，請他閉嘴只給 JSON)
+    # 設定 AI 導師的 Prompt
     prompt = f"""
     你是一位專門教導高齡者英文的老師。請針對以下英文單字清單，分別提供：
     1. 中文意思
@@ -54,7 +50,7 @@ def get_batch_gemini_explanations(word_list):
 
     單字清單: {', '.join(word_list)}
 
-    請嚴格以 JSON 格式回傳，絕對不要包含任何解釋文字或 Markdown 標記，格式範例：
+    請以 JSON 格式回傳，格式範例：
     {{
       "apple": {{ 
         "chinese": "蘋果", 
@@ -66,30 +62,26 @@ def get_batch_gemini_explanations(word_list):
     """
 
     try:
-        # 呼叫 generate_content 
+        # 🌟 4. 使用 generate_content 並透過 response_mime_type 強制鎖定 JSON 輸出
         response = ai_client.models.generate_content(
-            model='gemini-1.5-flash-latest', 
-            contents=prompt
+            model='gemini-1.5-flash', 
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            )
         )
         
-        # --- 新增：印出 AI 的原始回覆，幫我們抓蟲 ---
         print("\n=== AI 原始回覆 ===")
         print(response.text)
         print("===================\n")
         
-        # --- 改良：更強大的 JSON 擷取方式 ---
-        # 使用正規表達式，只抓取大括號 { } 裡面的內容，無視前後的其他文字
-        match = re.search(r'\{.*\}', response.text, re.DOTALL)
-        if match:
-            clean_text = match.group(0)
-            return json.loads(clean_text)
-        else:
-            print("解析失敗：AI 回傳的內容沒有包含合法的 JSON 結構。")
-            return {}
+        # 🌟 5. 直接將 AI 回傳的安全 JSON 字串解析為字典，不再需要 Regex
+        return json.loads(response.text)
             
     except Exception as e:
         print(f"Gemini 批次分析出錯的詳細原因: {e}")
         return {}
+
 def get_word_level(word):
     """根據單字長度進行基礎分級"""
     if len(word) <= 4: return "簡單"
@@ -102,9 +94,13 @@ def index():
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    data = request.json
+    # 🌟 6. 使用 request.get_json(silent=True) 避免前端發錯格式導致 500 錯誤
+    data = request.get_json(silent=True) or {}
     text = data.get('text', '')
     target_level = data.get('level', '全部')
+    
+    if not text:
+        return jsonify({"highlighted": "", "vocabulary": {}})
     
     doc = nlp(text)
     vocab_results = {}
@@ -146,15 +142,32 @@ def analyze():
 
 @app.route('/export_data', methods=['POST'])
 def export_csv():
-    data = request.json.get('vocabulary', {})
+    # 🌟 7. 防呆處理，避免 request.json 取不到值引發 AttributeError
+    req_data = request.get_json(silent=True) or {}
+    data = req_data.get('vocabulary', {})
+    
     output = io.StringIO()
     output.write('\ufeff') 
     writer = csv.writer(output)
     writer.writerow(['單字', '難度', '詞性', '音標', '中文翻譯', 'AI老師解釋與例句'])
+    
     for word, info in data.items():
-        writer.writerow([word.upper(), info.get('level',''), info.get('pos',''), info.get('phonetic',''), info.get('chinese',''), info.get('definition','')])
+        writer.writerow([
+            word.upper(), 
+            info.get('level', ''), 
+            info.get('pos', ''), 
+            info.get('phonetic', ''), 
+            info.get('chinese', ''), 
+            info.get('definition', '')
+        ])
+        
     output.seek(0)
-    return send_file(io.BytesIO(output.getvalue().encode('utf-8-sig')), mimetype='text/csv', as_attachment=True, download_name="智慧學習清單.csv")
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')), 
+        mimetype='text/csv', 
+        as_attachment=True, 
+        download_name="智慧學習清單.csv"
+    )
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
