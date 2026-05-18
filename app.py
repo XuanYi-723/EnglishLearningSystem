@@ -22,7 +22,7 @@ GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 if GENAI_API_KEY:
     genai.configure(api_key=GENAI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash-001')
     print("成功：已偵測到 GOOGLE_API_KEY，Gemini 模組設定完成。")
 else:
     gemini_model = None  # 確保若無金鑰，變數依然存在
