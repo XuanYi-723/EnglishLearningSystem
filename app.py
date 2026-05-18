@@ -44,7 +44,7 @@ def get_batch_gemini_explanations(word_list):
     if not word_list or not ai_client:
         return {}
 
-    # 設定 AI 導師的 Prompt
+    # 設定 AI 導師的 Prompt (稍微強化了指令，請他閉嘴只給 JSON)
     prompt = f"""
     你是一位專門教導高齡者英文的老師。請針對以下英文單字清單，分別提供：
     1. 中文意思
@@ -54,7 +54,7 @@ def get_batch_gemini_explanations(word_list):
 
     單字清單: {', '.join(word_list)}
 
-    請嚴格以 JSON 格式回傳，格式範例：
+    請嚴格以 JSON 格式回傳，絕對不要包含任何解釋文字或 Markdown 標記，格式範例：
     {{
       "apple": {{ 
         "chinese": "蘋果", 
@@ -66,18 +66,30 @@ def get_batch_gemini_explanations(word_list):
     """
 
     try:
-        # 🌟 3. 新版寫法：呼叫 generate_content 
+        # 呼叫 generate_content 
         response = ai_client.models.generate_content(
             model='gemini-1.5-flash', 
             contents=prompt
         )
-        # 清理 Markdown 格式符號
-        clean_text = response.text.replace('```json', '').replace('```', '').strip()
-        return json.loads(clean_text)
+        
+        # --- 新增：印出 AI 的原始回覆，幫我們抓蟲 ---
+        print("\n=== AI 原始回覆 ===")
+        print(response.text)
+        print("===================\n")
+        
+        # --- 改良：更強大的 JSON 擷取方式 ---
+        # 使用正規表達式，只抓取大括號 { } 裡面的內容，無視前後的其他文字
+        match = re.search(r'\{.*\}', response.text, re.DOTALL)
+        if match:
+            clean_text = match.group(0)
+            return json.loads(clean_text)
+        else:
+            print("解析失敗：AI 回傳的內容沒有包含合法的 JSON 結構。")
+            return {}
+            
     except Exception as e:
-        print(f"Gemini 批次分析出錯: {e}")
+        print(f"Gemini 批次分析出錯的詳細原因: {e}")
         return {}
-
 def get_word_level(word):
     """根據單字長度進行基礎分級"""
     if len(word) <= 4: return "簡單"
