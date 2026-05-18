@@ -8,24 +8,25 @@ import re
 import os
 import csv
 import io
-from dotenv import load_dotenv          # 1. 引入讀取 .env 的工具
-import google.generativeai as genai
+from dotenv import load_dotenv
+
+# 🌟 1. 換成最新版的 Google GenAI 套件
+from google import genai 
 
 app = Flask(__name__)
 CORS(app)
 
-# --- Gemini AI 設定 ---
-load_dotenv()  # 2. 優先載入本機 .env 檔案中的環境變數
+# --- Gemini AI 設定 (新版寫法) ---
+load_dotenv()
 
-# 讀取金鑰（不論是來自 .env 還是雲端環境變數，os.environ.get 都能抓到）
 GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 if GENAI_API_KEY:
-    genai.configure(api_key=GENAI_API_KEY)
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash-001')
-    print("成功：已偵測到 GOOGLE_API_KEY，Gemini 模組設定完成。")
+    # 🌟 2. 新版寫法：建立 Client
+    ai_client = genai.Client(api_key=GENAI_API_KEY)
+    print("成功：已偵測到 GOOGLE_API_KEY，Gemini 新版模組設定完成。")
 else:
-    gemini_model = None  # 確保若無金鑰，變數依然存在
+    ai_client = None
     print("警告：找不到 GOOGLE_API_KEY 環境變數，AI 功能將無法運作")
 
 # 載入 NLP 模型進行單字過濾與分析
@@ -40,8 +41,7 @@ def get_batch_gemini_explanations(word_list):
     """
     批次處理核心：一次將所有單字丟給 Gemini 分析以節省連線時間
     """
-    # 3. 確保 gemini_model 有被成功建立才執行
-    if not word_list or not gemini_model:
+    if not word_list or not ai_client:
         return {}
 
     # 設定 AI 導師的 Prompt
@@ -66,9 +66,14 @@ def get_batch_gemini_explanations(word_list):
     """
 
     try:
-        response = gemini_model.generate_content(prompt)
+        # 🌟 3. 新版寫法：呼叫 generate_content 
+        response = ai_client.models.generate_content(
+            model='gemini-1.5-flash', 
+            contents=prompt
+        )
         # 清理 Markdown 格式符號
-        clean_text = response.text.replace('```json', '').replace('```', '').strip()
+        clean_text = response.text.replace('```json', '').replace('
+```', '').strip()
         return json.loads(clean_text)
     except Exception as e:
         print(f"Gemini 批次分析出錯: {e}")
@@ -94,7 +99,7 @@ def analyze():
     vocab_results = {}
     words_to_ask_ai = []
 
-    # 1. 單字過濾邏輯：排除常用詞、符號，並依照難度篩選
+    # 單字過濾邏輯
     seen_words = set()
     for token in doc:
         word_lower = token.text.lower()
@@ -104,13 +109,12 @@ def analyze():
                 if target_level == "全部" or level == target_level:
                     words_to_ask_ai.append(word_lower)
                     seen_words.add(word_lower)
-        # 限制每次分析最多 12 個單字，確保效能
         if len(words_to_ask_ai) >= 12: break
 
-    # 2. 執行 AI 批次生成
+    # 執行 AI 批次生成
     ai_data = get_batch_gemini_explanations(words_to_ask_ai)
 
-    # 3. 整理分析結果
+    # 整理分析結果
     for word in words_to_ask_ai:
         if word in ai_data:
             vocab_results[word] = ai_data[word]
@@ -121,7 +125,7 @@ def analyze():
                 "definition": "AI 老師正在備課中。", "level": get_word_level(word)
             }
 
-    # 4. 文章內容高亮標記
+    # 文章內容高亮標記
     highlighted_text = text
     for word in sorted(vocab_results.keys(), key=len, reverse=True):
         pattern = re.compile(rf'\b({re.escape(word)})\b', re.IGNORECASE)
@@ -133,7 +137,7 @@ def analyze():
 def export_csv():
     data = request.json.get('vocabulary', {})
     output = io.StringIO()
-    output.write('\ufeff') # 確保 Excel 開啟時不亂碼
+    output.write('\ufeff') 
     writer = csv.writer(output)
     writer.writerow(['單字', '難度', '詞性', '音標', '中文翻譯', 'AI老師解釋與例句'])
     for word, info in data.items():
@@ -142,6 +146,5 @@ def export_csv():
     return send_file(io.BytesIO(output.getvalue().encode('utf-8-sig')), mimetype='text/csv', as_attachment=True, download_name="智慧學習清單.csv")
 
 if __name__ == '__main__':
-    # 支援雲端平台自動分配 Port
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
