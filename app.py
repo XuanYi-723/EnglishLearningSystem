@@ -8,18 +8,24 @@ import re
 import os
 import csv
 import io
+from dotenv import load_dotenv          # 1. 引入讀取 .env 的工具
 import google.generativeai as genai
 
 app = Flask(__name__)
 CORS(app)
 
 # --- Gemini AI 設定 ---
-# 優先從雲端環境變數讀取金鑰
+load_dotenv()  # 2. 優先載入本機 .env 檔案中的環境變數
+
+# 讀取金鑰（不論是來自 .env 還是雲端環境變數，os.environ.get 都能抓到）
 GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY")
+
 if GENAI_API_KEY:
     genai.configure(api_key=GENAI_API_KEY)
     gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+    print("成功：已偵測到 GOOGLE_API_KEY，Gemini 模組設定完成。")
 else:
+    gemini_model = None  # 確保若無金鑰，變數依然存在
     print("警告：找不到 GOOGLE_API_KEY 環境變數，AI 功能將無法運作")
 
 # 載入 NLP 模型進行單字過濾與分析
@@ -34,12 +40,13 @@ def get_batch_gemini_explanations(word_list):
     """
     批次處理核心：一次將所有單字丟給 Gemini 分析以節省連線時間
     """
-    if not word_list or not GENAI_API_KEY:
+    # 3. 確保 gemini_model 有被成功建立才執行
+    if not word_list or not gemini_model:
         return {}
 
     # 設定 AI 導師的 Prompt
     prompt = f"""
-    你是一位專門教導高齡者的英文老師。請針對以下英文單字清單，分別提供：
+    你是一位專門教導高齡者英文的老師。請針對以下英文單字清單，分別提供：
     1. 中文意思
     2. 詞性 (pos)
     3. 音標 (phonetic)
