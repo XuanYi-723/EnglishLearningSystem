@@ -14,7 +14,14 @@ from dotenv import load_dotenv
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key-for-dev')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+
+# 取得雲端資料庫 URL，若無則預設使用本地 SQLite
+database_url = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
+# 修復 SQLAlchemy 1.4+ 不支援 postgres:// 的問題 (Render/Heroku 通常給 postgres://)
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
@@ -70,7 +77,7 @@ def get_batch_gemini_explanations(word_list):
     }}
     """
 
-    # 🌟 核心修正：改用 gemini-2.5-flash，完美避開 1.5的下架與 2.0的免費限制
+    # 🌟 核心修正：使用最新的 gemini-3-flash-preview 模型
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={GENAI_API_KEY}"
     
     headers = {'Content-Type': 'application/json'}
