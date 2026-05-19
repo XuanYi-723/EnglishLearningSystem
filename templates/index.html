@@ -5,49 +5,249 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智慧英語學習系統 - Gemini AI 導師版</title>
     <style>
-        body { margin: 0; font-family: 'Segoe UI', "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #1e293b; }
-        .container { display: flex; height: 100vh; }
-        .left { flex: 4; padding: 25px; background: white; border-right: 1px solid #e2e8f0; overflow-y: auto; }
-        .right { flex: 6; padding: 25px; overflow-y: auto; }
-        
-        h2 { color: #475569; border-left: 6px solid #8b5cf6; padding-left: 12px; margin-bottom: 20px; }
-        textarea { width: 100%; height: 220px; padding: 15px; border-radius: 12px; border: 2px solid #e2e8f0; font-size: 18px; line-height: 1.6; box-sizing: border-box; }
-        
-        .level-btn { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 12px 18px; margin: 4px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .level-btn.active { background: #8b5cf6; color: white; border-color: #7c3aed; }
-        
-        .action-btn { background: #f59e0b; color: white; border: none; padding: 20px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 20px; transition: background 0.3s;}
-        .action-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
-        .game-btn { background: #8b5cf6; color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; display: none; }
-        .csv-btn { background: #10b981; color: white; border: none; padding: 12px; border-radius: 12px; cursor: pointer; margin-top: 10px; width: 100%; display: none; }
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            --primary-color: #6366f1;
+            --primary-hover: #4f46e5;
+            --secondary-color: #f59e0b;
+            --text-main: #1e293b;
+            --text-muted: #475569;
+            --accent: #10b981;
+        }
 
-        #highlightedArticle { background: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; line-height: 2; font-size: 1.2em; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        mark { background: #fef08a; padding: 2px 4px; border-radius: 4px; font-weight: bold; color: #b45309; }
+        body { 
+            margin: 0; 
+            font-family: 'Inter', 'Segoe UI', "Microsoft JhengHei", sans-serif; 
+            color: var(--text-main); 
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            background-attachment: fixed;
+        }
 
-        .word-card { background: white; padding: 25px; margin-bottom: 20px; border-radius: 16px; border-left: 10px solid #8b5cf6; box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; }
-        .ai-tag { background: #ede9fe; color: #7c3aed; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; position: absolute; right: 20px; top: 20px; }
-        .ai-content { background: #f8fafc; padding: 15px; border-radius: 12px; margin-top: 12px; font-size: 1.1em; line-height: 1.6; color: #334155; border: 1px solid #e2e8f0; }
+        /* Navbar */
+        .navbar {
+            background: rgba(255, 255, 255, 0.4);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
         
-        #gameOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.98); z-index: 2000; padding: 30px; box-sizing: border-box; color: white; text-align: center; overflow-y: auto; }
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            letter-spacing: 1px;
+        }
+
+        .user-nav {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.5);
+            font-weight: bold;
+        }
+
+        .user-nav a:hover {
+            background: rgba(255, 255, 255, 0.8);
+            transform: translateY(-2px);
+        }
+
+        .logout-btn {
+            color: #ef4444 !important;
+        }
+
+        .container { display: flex; flex: 1; overflow: hidden; padding: 20px; gap: 20px; }
+        
+        .left, .right {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: var(--glass-shadow);
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .left { flex: 4; }
+        .right { flex: 6; }
+        
+        h2 { 
+            color: var(--primary-color); 
+            margin-top: 0;
+            margin-bottom: 20px; 
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 24px;
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+        
+        textarea { 
+            width: 100%; height: 220px; padding: 20px; 
+            border-radius: 16px; 
+            border: 2px solid rgba(255,255,255,0.6); 
+            background: rgba(255, 255, 255, 0.5); 
+            color: var(--text-main);
+            font-size: 18px; line-height: 1.6; box-sizing: border-box; 
+            transition: all 0.3s;
+            resize: vertical;
+        }
+        textarea:focus { 
+            outline: none; 
+            border-color: var(--primary-color); 
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); 
+        }
+        
+        .level-btn { 
+            background: rgba(255, 255, 255, 0.5); 
+            color: var(--text-muted); 
+            border: 1px solid rgba(255,255,255,0.6); 
+            padding: 12px 20px; 
+            margin: 4px; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: all 0.3s;
+        }
+        .level-btn.active { 
+            background: var(--primary-color); 
+            color: white; 
+            border-color: var(--primary-color); 
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); 
+        }
+        .level-btn:hover:not(.active) { 
+            background: rgba(255,255,255,0.8);
+            transform: translateY(-2px);
+        }
+        
+        .action-btn { 
+            background: linear-gradient(135deg, #f59e0b, #d97706); 
+            color: white; border: none; padding: 20px; border-radius: 16px; 
+            font-size: 20px; font-weight: bold; cursor: pointer; width: 100%; 
+            margin-top: 20px; transition: all 0.3s; 
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3); 
+        }
+        .action-btn:hover { transform: translateY(-3px); box-shadow: 0 12px 25px rgba(245, 158, 11, 0.4); }
+        .action-btn:disabled { background: #cbd5e1; color: white; cursor: not-allowed; box-shadow: none; transform: none; }
+        
+        .game-btn { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 15px; display: none; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3); transition: 0.3s; }
+        .game-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4); }
+        .csv-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; width: 100%; display: none; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3); transition: 0.3s; }
+        .csv-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); }
+
+        #highlightedArticle { 
+            background: rgba(255, 255, 255, 0.6); 
+            padding: 25px; border-radius: 16px; margin-bottom: 25px; 
+            line-height: 2; font-size: 1.2em; 
+            border: 1px solid rgba(255, 255, 255, 0.8); 
+            box-shadow: inset 0 2px 10px rgba(255,255,255,0.5); 
+        }
+        mark { background: rgba(253, 224, 71, 0.8); padding: 4px 8px; border-radius: 6px; font-weight: bold; color: #b45309; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+
+        .word-card { 
+            background: rgba(255, 255, 255, 0.7); 
+            padding: 25px; margin-bottom: 20px; border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.9); 
+            border-left: 8px solid var(--primary-color); 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05); 
+            position: relative; transition: all 0.3s; 
+            backdrop-filter: blur(5px);
+        }
+        .word-card:hover { transform: translateY(-5px); box-shadow: 0 12px 25px rgba(0,0,0,0.1); }
+        .ai-tag { background: linear-gradient(135deg, #e0e7ff, #c7d2fe); color: #4f46e5; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; position: absolute; right: 20px; top: 20px; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15); }
+        .ai-content { background: rgba(255,255,255,0.6); padding: 20px; border-radius: 16px; margin-top: 15px; font-size: 1.1em; line-height: 1.7; color: var(--text-main); border: 1px solid rgba(255,255,255,0.8); }
+        
+        /* Loading Animation */
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; color: var(--primary-color); }
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid rgba(99, 102, 241, 0.2);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 25px;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .loader-text {
+            font-size: 1.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #6366f1, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.02); } }
+
+        /* Game Overlay */
+        #gameOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.4); z-index: 2000; padding: 30px; box-sizing: border-box; color: var(--text-main); text-align: center; overflow-y: auto; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
         .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; max-width: 1200px; margin: 40px auto; }
-        .card { background: white; color: #1e293b; padding: 25px; border-radius: 18px; cursor: pointer; min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 4px solid transparent; transition: 0.2s; }
-        .card.selected { border-color: #8b5cf6; transform: scale(1.05); }
-        .card.matched { background: #dcfce7; color: #166534; opacity: 0.6; cursor: default; border-color: #22c55e; }
-        .close-game-btn { padding: 12px 40px; border-radius: 30px; border: none; background: #ef4444; color: white; font-weight: bold; font-size: 18px; cursor: pointer; }
+        .card { background: rgba(255, 255, 255, 0.7); color: var(--text-main); padding: 25px; border-radius: 20px; cursor: pointer; min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 4px solid rgba(255,255,255,0.9); transition: all 0.3s; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+        .card.selected { border-color: var(--primary-color); transform: scale(1.05) translateY(-5px); box-shadow: 0 15px 30px rgba(99, 102, 241, 0.2); }
+        .card.matched { background: rgba(16, 185, 129, 0.1); color: #059669; opacity: 0.7; cursor: default; border-color: #10b981; }
+        .close-game-btn { padding: 15px 40px; border-radius: 30px; border: none; background: #ef4444; color: white; font-weight: bold; font-size: 18px; cursor: pointer; transition: 0.3s; box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3); }
+        .close-game-btn:hover { background: #dc2626; transform: translateY(-2px); box-shadow: 0 12px 25px rgba(239, 68, 68, 0.4); }
+        
+        /* Custom Scrollbar for aesthetics */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.4); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.6); }
     </style>
 </head>
 <body>
+    <div class="navbar">
+        <div class="navbar-brand">NEURO-LINGO AI 導師</div>
+        <div class="user-nav">
+            {% if current_user and current_user.is_authenticated %}
+                <span>歡迎回來, <span style="color:var(--primary-color); font-weight:bold; font-size: 1.1em;">{{ current_user.username }}</span></span>
+                <a href="{{ url_for('logout') }}" class="logout-btn">登出系統</a>
+            {% else %}
+                <span style="color:var(--text-muted); font-size:0.95em;">(訪客模式: 分析紀錄將不會保存)</span>
+                <a href="{{ url_for('login') }}">註冊 / 登入</a>
+            {% endif %}
+        </div>
+    </div>
+
     <div id="gameOverlay">
-        <h1>智慧單字配對挑戰</h1>
-        <p style="font-size: 1.3em;">請找出對應的「英文單字」與「中文意思」！</p>
+        <h1 style="color:var(--primary-color); font-size: 2.5em; font-weight: 900;">單字配對挑戰</h1>
+        <p style="font-size: 1.3em; color:var(--text-muted); font-weight: bold;">請找出對應的「英文單字」與「中文意思」！</p>
         <button onclick="closeGame()" class="close-game-btn">返回學習介面</button>
         <div id="gameGrid" class="game-grid"></div>
     </div>
 
     <div class="container">
         <div class="left">
-            <h2>1. 貼上文章內容</h2>
-            <textarea id="textInput" placeholder="請在此輸入英文文章..."></textarea>
+            <h2>1. 載入文字數據</h2>
+            <textarea id="textInput" placeholder="請在此貼上您想學習的英文文章或句子..."></textarea>
             
             <h2 style="margin-top:35px;">2. 設定學習等級</h2>
             <div id="levelSelector">
@@ -57,14 +257,14 @@
                 <button onclick="selectLevel('全部', this)" class="level-btn active">全部</button>
             </div>
 
-            <button id="analyzeBtn" onclick="analyze()" class="action-btn">開始執行</button>
-            <button id="gameBtn" class="game-btn" onclick="openGame()">單字連連看</button>
-            <button id="csvBtn" class="csv-btn" onclick="exportCSV()">下載單字表</button>
+            <button id="analyzeBtn" onclick="analyze()" class="action-btn">開始智能分析</button>
+            <button id="gameBtn" class="game-btn" onclick="openGame()">啟動記憶挑戰</button>
+            <button id="csvBtn" class="csv-btn" onclick="exportCSV()">下載個人單字庫</button>
         </div>
 
         <div class="right">
-            <h2>3. AI 學習報告</h2>
-            <div id="highlightedArticle">等待系統分析中...</div>
+            <h2>3. AI 深度解析報告</h2>
+            <div id="highlightedArticle">等待您的輸入，AI 隨時準備為您解析...</div>
             <div id="output"></div>
         </div>
     </div>
@@ -82,15 +282,23 @@
 
         async function analyze() {
             const text = document.getElementById("textInput").value.trim();
-            if (!text) return alert("請輸入文字！");
+            if (!text) return alert("請先輸入英文內容！");
             
             const outputDiv = document.getElementById("output");
             const analyzeBtn = document.getElementById("analyzeBtn");
             
-            // 防呆機制：停用按鈕，避免重複點擊
+            // 防呆機制
             analyzeBtn.disabled = true;
-            analyzeBtn.innerText = "⏳ AI 老師備課中...";
-            outputDiv.innerHTML = "<div style='text-align:center; padding:60px;'><h3>🔮 正在分析文章並編寫溫馨教材，請稍候...</h3></div>";
+            analyzeBtn.innerText = "運算生成中...";
+            
+            // 加入動態載入動畫
+            outputDiv.innerHTML = `
+                <div class="loader-container">
+                    <div class="spinner"></div>
+                    <div class="loader-text">AI 正在為您備課中...</div>
+                    <div style="font-size:1.1em; color:var(--text-muted); margin-top:15px; font-weight: bold;">正在建立專屬的解釋與例句</div>
+                </div>
+            `;
             
             // 隱藏之前的功能按鈕
             document.getElementById("gameBtn").style.display = "none";
@@ -122,30 +330,30 @@
                 for (let word in data.vocabulary) {
                     let item = data.vocabulary[word];
                     html += `<div class="word-card">
-                        <span class="ai-tag">Gemini AI 教學</span>
-                        <b style="font-size:1.5em;">${word.toUpperCase()}</b> 
-                        <span style="color:#94a3b8; margin-left:10px;">[${item.level}]</span><br>
-                        <span style="color:#64748b; font-size:1.1em;">${item.pos} | ${item.phonetic}</span><br>
-                        <b style="color:#c2410c; display:block; margin-top:10px; font-size:1.3em;">${item.chinese}</b>
+                        <span class="ai-tag">Gemini AI 解析</span>
+                        <b style="font-size:1.6em; color:var(--primary-color);">${word.toUpperCase()}</b> 
+                        <span style="color:var(--text-muted); margin-left:10px; font-weight:bold; background:rgba(255,255,255,0.8); padding:2px 8px; border-radius:8px;">[${item.level}]</span><br>
+                        <span style="color:#64748b; font-size:1.1em; display:inline-block; margin-top:8px;">${item.pos} | ${item.phonetic}</span><br>
+                        <b style="color:#d97706; display:block; margin-top:12px; font-size:1.4em;">${item.chinese}</b>
                         <div class="ai-content">${item.definition.replace(/\n/g, '<br>')}</div>
                     </div>`;
                 }
-                outputDiv.innerHTML = html || "<div style='text-align:center; padding:40px; color:#64748b;'>未發現符合此難度等級的單字。</div>";
+                outputDiv.innerHTML = html || "<div style='text-align:center; padding:40px; color:var(--text-muted); font-size:1.2em; font-weight:bold;'>沒有找到符合此難度等級的單字。</div>";
             } catch (e) {
                 console.error(e);
-                outputDiv.innerHTML = `<div style='color:#ef4444; background:#fef2f2; padding:20px; border-radius:12px; border:1px solid #f87171;'>
-                    <b>伺服器連線失敗</b><br><br>請檢查後端伺服器是否正常啟動，或是 API 金鑰設定是否正確。<br>詳細錯誤：${e.message}
+                outputDiv.innerHTML = `<div style='color:#ef4444; background:rgba(254, 226, 226, 0.8); padding:25px; border-radius:16px; border:2px solid #fca5a5;'>
+                    <b style="font-size:1.2em;">連線分析失敗</b><br><br>請確認後端伺服器運作正常。<br>詳細錯誤：${e.message}
                 </div>`;
             } finally {
                 // 恢復按鈕狀態
                 analyzeBtn.disabled = false;
-                analyzeBtn.innerText = "開始執行";
+                analyzeBtn.innerText = "開始智能分析";
             }
         }
 
         function openGame() {
             if (!currentVocab || Object.keys(currentVocab).length === 0) {
-                return alert("請先進行文章分析，且需有單字才能開始遊戲！");
+                return alert("需要有單字才能開始挑戰！");
             }
 
             const grid = document.getElementById("gameGrid");
@@ -158,15 +366,15 @@
             
             words.forEach(word => {
                 const info = currentVocab[word];
-                cards.push({ type: 'en', id: word, content: `<h2 style="color:#3b82f6; font-size:2.2em; margin:0;">${word.toUpperCase()}</h2>`, label: "英文" });
-                cards.push({ type: 'zh', id: word, content: `<h2 style="color:#c2410c; margin:0;">${info.chinese}</h2>`, label: "中文" });
+                cards.push({ type: 'en', id: word, content: `<h2 style="color:var(--primary-color); font-size:2.2em; margin:0; text-shadow:none;">${word.toUpperCase()}</h2>`, label: "EN" });
+                cards.push({ type: 'zh', id: word, content: `<h2 style="color:#d97706; margin:0; text-shadow:none;">${info.chinese}</h2>`, label: "ZH" });
             });
 
             // 洗牌並渲染卡片
             cards.sort(() => Math.random() - 0.5).forEach(card => {
                 const div = document.createElement("div");
                 div.className = "card";
-                div.innerHTML = `<small style="color:#94a3b8; font-weight:bold; margin-bottom:10px;">${card.label}</small>${card.content}`;
+                div.innerHTML = `<small style="color:var(--text-muted); font-weight:bold; margin-bottom:10px;">${card.label}</small>${card.content}`;
                 div.onclick = () => handleCardClick(div, card);
                 grid.appendChild(div);
             });
@@ -217,7 +425,7 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = "智慧英語單字清單.csv";
+                a.download = "個人單字庫.csv";
                 document.body.appendChild(a); // Firefox 兼容性
                 a.click();
                 document.body.removeChild(a);

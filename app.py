@@ -1,6 +1,8 @@
 import functools
-from flask import Flask, request, jsonify, render_template, send_file
+from flask import Flask, request, jsonify, render_template, send_file, redirect, url_for, flash
 from flask_cors import CORS
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from models import db, User, UsageRecord
 import spacy
 import requests
 import json
@@ -10,37 +12,44 @@ import csv
 import io
 from dotenv import load_dotenv
 
-# 🌟 1. 換成最新版的 Google GenAI 套件，並引入 types 以強制回傳 JSON
-from google import genai
-from google.genai import types
-
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key-for-dev')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+with app.app_context():
+    db.create_all()
+
 CORS(app)
 
-# --- Gemini AI 設定 (新版寫法) ---
+# 載入環境變數
 load_dotenv()
-
 GENAI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 if GENAI_API_KEY:
-    # 🌟 2. 新版寫法：建立 Client
-    ai_client = genai.Client(api_key=GENAI_API_KEY)
-    print("成功：已偵測到 GOOGLE_API_KEY，Gemini 新版模組設定完成。")
+    print("成功：已偵測到 GOOGLE_API_KEY，直連模式配置完成。")
 else:
-    ai_client = None
     print("警告：找不到 GOOGLE_API_KEY 環境變數，AI 功能將無法運作")
 
-# 🌟 3. 移除容易出錯的動態下載邏輯，直接載入模型 (請透過 requirements.txt 安裝)
+# 載入 NLP 模型
 nlp = spacy.load("en_core_web_sm")
 
 def get_batch_gemini_explanations(word_list):
     """
-    批次處理核心：一次將所有單字丟給 Gemini 分析以節省連線時間
+    核心直連函式：使用 2026 年最新、免費額度最穩定的 gemini-2.5-flash
     """
-    if not word_list or not ai_client:
+    if not word_list or not GENAI_API_KEY:
         return {}
 
-    # 設定 AI 導師的 Prompt
     prompt = f"""
     你是一位專門教導高齡者英文的老師。請針對以下英文單字清單，分別提供：
     1. 中文意思
@@ -50,7 +59,7 @@ def get_batch_gemini_explanations(word_list):
 
     單字清單: {', '.join(word_list)}
 
-    請以 JSON 格式回傳，格式範例：
+    請嚴格以 JSON 格式回傳，絕對不要包含任何前後說明的廢話，格式範例：
     {{
       "apple": {{ 
         "chinese": "蘋果", 
@@ -61,25 +70,42 @@ def get_batch_gemini_explanations(word_list):
     }}
     """
 
+    # 🌟 核心修正：改用 gemini-2.5-flash，完美避開 1.5的下架與 2.0的免費限制
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={GENAI_API_KEY}"
+    
+    headers = {'Content-Type': 'application/json'}
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+
     try:
-        # 🌟 4. 使用 generate_content 並透過 response_mime_type 強制鎖定 JSON 輸出
-        response = ai_client.models.generate_content(
-            model='gemini-1.5-flash-latest', 
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-            )
-        )
+        response = requests.post(url, headers=headers, json=payload)
+        res_json = response.json()
         
         print("\n=== AI 原始回覆 ===")
-        print(response.text)
-        print("===================\n")
-        
-        # 🌟 5. 直接將 AI 回傳的安全 JSON 字串解析為字典，不再需要 Regex
-        return json.loads(response.text)
+        if response.status_code == 200:
+            text_response = res_json['candidates'][0]['content']['parts'][0]['text']
+            print(text_response)
+            print("===================\n")
+            
+            # 自動清洗 AI 可能附帶的 Markdown 標籤
+            cleaned_text = text_response.strip()
+            if cleaned_text.startswith("```json"):
+                cleaned_text = cleaned_text[7:]
+            elif cleaned_text.startswith("```"):
+                cleaned_text = cleaned_text[3:]
+            if cleaned_text.endswith("```"):
+                cleaned_text = cleaned_text[:-3]
+            cleaned_text = cleaned_text.strip()
+            
+            return json.loads(cleaned_text)
+        else:
+            print(f"錯誤代碼: {response.status_code}, 詳細內容: {res_json}")
+            print("===================\n")
+            return {}
             
     except Exception as e:
-        print(f"Gemini 批次分析出錯的詳細原因: {e}")
+        print(f"直連 API 發生異常: {e}")
         return {}
 
 def get_word_level(word):
@@ -90,23 +116,66 @@ def get_word_level(word):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', current_user=current_user)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for('index'))
+        else:
+            flash('登入失敗，帳號或密碼錯誤。', 'error')
+    return render_template('login.html')
+
+@app.route('/register', methods=['POST'])
+def register():
+    username = request.form.get('username')
+    password = request.form.get('password')
+    user = User.query.filter_by(username=username).first()
+    if user:
+        flash('帳號已存在，請選擇其他帳號名稱。', 'error')
+        return redirect(url_for('login'))
+    new_user = User(username=username)
+    new_user.set_password(password)
+    db.session.add(new_user)
+    db.session.commit()
+    login_user(new_user)
+    return redirect(url_for('index'))
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    # 🌟 6. 使用 request.get_json(silent=True) 避免前端發錯格式導致 500 錯誤
     data = request.get_json(silent=True) or {}
     text = data.get('text', '')
     target_level = data.get('level', '全部')
     
     if not text:
         return jsonify({"highlighted": "", "vocabulary": {}})
+        
+    if current_user.is_authenticated:
+        record = UsageRecord(
+            user_id=current_user.id,
+            level_requested=target_level,
+            article_snippet=text[:100] + ('...' if len(text) > 100 else '')
+        )
+        db.session.add(record)
+        db.session.commit()
     
     doc = nlp(text)
     vocab_results = {}
     words_to_ask_ai = []
 
-    # 單字過濾邏輯
     seen_words = set()
     for token in doc:
         word_lower = token.text.lower()
@@ -142,7 +211,6 @@ def analyze():
 
 @app.route('/export_data', methods=['POST'])
 def export_csv():
-    # 🌟 7. 防呆處理，避免 request.json 取不到值引發 AttributeError
     req_data = request.get_json(silent=True) or {}
     data = req_data.get('vocabulary', {})
     
