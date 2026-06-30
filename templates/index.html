@@ -738,7 +738,7 @@
 
             <!-- Tab 1: Vocab cards list -->
             <div class="tab-content active" id="vocabTab">
-                <div id="highlightedArticle">等待您的輸入，AI 導師隨時準備為您解析...</div>
+                <div id="highlightedArticle">等待您的輸入，AI 隨時準備為您解析...</div>
                 <div id="output"></div>
             </div>
 
@@ -829,13 +829,13 @@
 
             // 狀態防護
             analyzeBtn.disabled = true;
-            analyzeBtn.innerText = "能量編碼中...";
+            analyzeBtn.innerText = "單字編碼中...";
 
             // 載入動畫
             outputDiv.innerHTML = `
                 <div class="loader-container">
                     <div class="spinner"></div>
-                    <div class="loader-text">AI 導師正在構建單字能量...</div>
+                    <div class="loader-text">AI 導師正在構建單字...</div>
                     <div style="font-size:0.95rem; color:var(--text-muted); margin-top:15px; font-weight: bold;">正在建立專屬的解釋與例句</div>
                 </div>
             `;
@@ -903,7 +903,7 @@
             } catch (e) {
                 console.error(e);
                 outputDiv.innerHTML = `<div style='color:#ef4444; background:rgba(239, 68, 68, 0.1); padding:25px; border-radius:16px; border:1px solid rgba(239, 68, 68, 0.2);'>
-                    <b style="font-size:1.15em;">啟動風暴失敗</b><br><br>請確認後端修煉場運作正常。<br>詳細錯誤：${e.message}
+                    <b style="font-size:1.15em;">啟動失敗</b><br><br>請確認後端運作正常。<br>詳細錯誤：${e.message}
                 </div>`;
             } finally {
                 // 恢復按鈕狀態
@@ -1095,13 +1095,13 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = "智慧單字能量晶片.csv";
+                a.download = "智慧單字表.csv";
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
             } catch (e) {
-                alert("匯出晶片時發生錯誤，請稍後再試。");
+                alert("匯出時發生錯誤，請稍後再試。");
             }
         }
     </script>
