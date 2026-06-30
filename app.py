@@ -93,6 +93,7 @@ def serialize_bst(node):
 
 
 def fetch_gemini_chunk(word_chunk):
+    import time
     prompt = f"""
     你是一位專門教導高齡者英文的老師。請針對以下英文單字清單，分別提供：
     1. 中文意思
@@ -102,7 +103,7 @@ def fetch_gemini_chunk(word_chunk):
 
     單字清單: {', '.join(word_chunk)}
 
-    請嚴格以 JSON 格式回傳，絕對不要包含任何前後說明的廢話，格式範例：
+    請嚴格以 JSON 格式回傳，絕對不要包含 any 前後說明的廢話，格式範例：
     {{
       "apple": {{ 
         "chinese": "蘋果", 
@@ -113,31 +114,56 @@ def fetch_gemini_chunk(word_chunk):
     }}
     """
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={GENAI_API_KEY}"
+    # 宣告模型備用鏈 (Fallback Chain)
+    models_chain = [
+        "gemini-2.5-flash", 
+        "gemini-2.0-flash-lite",
+        "gemini-flash-latest", 
+        "gemini-3-flash-preview"
+    ]
+    
     headers = {'Content-Type': 'application/json'}
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        if response.status_code == 200:
-            res_json = response.json()
-            text_response = res_json['candidates'][0]['content']['parts'][0]['text']
-            
-            cleaned_text = text_response.strip()
-            if cleaned_text.startswith("```json"):
-                cleaned_text = cleaned_text[7:]
-            elif cleaned_text.startswith("```"):
-                cleaned_text = cleaned_text[3:]
-            if cleaned_text.endswith("```"):
-                cleaned_text = cleaned_text[:-3]
-            
-            return json.loads(cleaned_text.strip())
-        else:
-            print(f"API 錯誤代碼: {response.status_code}")
-            return {}
-    except Exception as e:
-        print(f"API 請求異常: {e}")
-        return {}
+    
+    for model_name in models_chain:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GENAI_API_KEY}"
+        
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                timeout = 25 + attempt * 10
+                response = requests.post(url, headers=headers, json=payload, timeout=timeout)
+                
+                if response.status_code == 200:
+                    res_json = response.json()
+                    text_response = res_json['candidates'][0]['content']['parts'][0]['text']
+                    
+                    cleaned_text = text_response.strip()
+                    if cleaned_text.startswith("```json"):
+                        cleaned_text = cleaned_text[7:]
+                    elif cleaned_text.startswith("```"):
+                        cleaned_text = cleaned_text[3:]
+                    if cleaned_text.endswith("```"):
+                        cleaned_text = cleaned_text[:-3]
+                    
+                    return json.loads(cleaned_text.strip())
+                elif response.status_code == 429:
+                    print(f"[{model_name}] 遭遇限流 (429)，第 {attempt+1} 次嘗試，稍後重試...")
+                    time.sleep(1)
+                elif response.status_code == 503:
+                    print(f"[{model_name}] 服務過載 (503)，第 {attempt+1} 次嘗試，稍後重試...")
+                    time.sleep(1)
+                else:
+                    print(f"[{model_name}] API 錯誤 {response.status_code}，切換備用模型...")
+                    break # 換下一個模型
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                print(f"[{model_name}] 連線超時/異常: {e}，進行第 {attempt+1} 次重試...")
+                time.sleep(1)
+            except Exception as e:
+                print(f"[{model_name}] 異常: {e}")
+                break
+                
+    return {}
 
 
 def get_batch_gemini_explanations(word_list, chunk_size=10):

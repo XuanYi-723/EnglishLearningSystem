@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧠 英文單字修煉場 - AI 導師版</title>
+    <title>英文單字系統</title>
     <!-- 引入高質感 Google 字型 Outfit & Inter -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
@@ -692,7 +692,7 @@
             {% if current_user and current_user.is_authenticated %}
             <span>歡迎回來, <span style="color:var(--primary); font-weight:bold; font-size: 1.1em;">{{ current_user.username
                     }}</span></span>
-            <a href="{{ url_for('logout') }}" class="logout-btn">🚪 登出系統</a>
+            <a href="{{ url_for('logout') }}" class="logout-btn">登出系統</a>
             {% else %}
             <span style="color:var(--text-muted); font-size:0.95em;">(訪客模式: 分析紀錄將不會保存)</span>
             <a href="{{ url_for('login') }}">註冊 / 登入</a>

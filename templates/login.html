@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -67,7 +68,7 @@
             width: 100%;
             padding: 14px 15px;
             border-radius: 12px;
-            border: 2px solid rgba(255,255,255,0.6);
+            border: 2px solid rgba(255, 255, 255, 0.6);
             background: rgba(255, 255, 255, 0.5);
             color: var(--text-main);
             font-size: 1rem;
@@ -112,7 +113,7 @@
             cursor: pointer;
             transition: 0.3s;
         }
-        
+
         .toggle-link:hover {
             color: var(--primary-hover);
             text-decoration: underline;
@@ -141,24 +142,25 @@
             color: #10b981;
             border: 1px solid rgba(16, 185, 129, 0.3);
         }
-        
+
         #register-form {
             display: none;
         }
     </style>
 </head>
+
 <body>
 
     <div class="auth-container">
         <!-- Flash messages display -->
         {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <div class="flash-messages">
-              {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">{{ message }}</div>
-              {% endfor %}
-            </div>
-          {% endif %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% endwith %}
 
         <!-- Login Form -->
@@ -177,7 +179,8 @@
             </form>
             <span class="toggle-link" onclick="toggleForms()">還沒有帳號？立即註冊</span>
             <br>
-            <a href="{{ url_for('index') }}" class="toggle-link" style="color:var(--text-muted); font-size:0.9rem; margin-top:15px;">先以訪客身分繼續</a>
+            <a href="{{ url_for('index') }}" class="toggle-link"
+                style="color:var(--text-muted); font-size:0.9rem; margin-top:15px;">先以訪客身分繼續</a>
         </div>
 
         <!-- Register Form -->
@@ -192,7 +195,8 @@
                     <label for="reg-password">設定密碼</label>
                     <input type="password" id="reg-password" name="password" required>
                 </div>
-                <button type="submit" class="auth-btn" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);">完成註冊</button>
+                <button type="submit" class="auth-btn"
+                    style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);">完成註冊</button>
             </form>
             <span class="toggle-link" onclick="toggleForms()">已有帳號？點此登入</span>
         </div>
@@ -212,4 +216,5 @@
         }
     </script>
 </body>
+
 </html>
