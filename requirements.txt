@@ -1,0 +1,11 @@
+flask
+flask-cors
+requests
+python-dotenv
+google-genai
+spacy
+Flask-Login
+Werkzeug
+gunicorn
+gspread
+google-auth
