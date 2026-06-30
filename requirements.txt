@@ -7,5 +7,3 @@ spacy
 Flask-Login
 Werkzeug
 gunicorn
-gspread
-google-auth

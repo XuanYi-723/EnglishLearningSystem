@@ -11,7 +11,5 @@ services:
         sync: false
       - key: SECRET_KEY
         generateValue: true
-      - key: GOOGLE_CREDS_JSON
-        sync: false
-      - key: SPREADSHEET_KEY
+      - key: GAS_WEBAPP_URL
         sync: false
