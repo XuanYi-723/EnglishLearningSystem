@@ -45,7 +45,17 @@ class GASDatabase:
                 timeout=15
             )
             if response.status_code == 200:
-                data = response.json()
+                # 檢查是否為 HTML 錯誤頁面（例如「找不到以下函式：doPost」）
+                if "doPost" in response.text and "Google Apps Script" in response.text:
+                    print("\n[嚴重錯誤] 連線成功，但您的 Google Apps Script 尚未部署 doPost 函式！")
+                    print("請確保您的 Apps Script 程式碼包含 `function doPost(e)`，並且已使用「新部署」發佈為網頁應用程式。\n")
+                    return
+                
+                try:
+                    data = response.json()
+                except Exception as json_err:
+                    print(f"錯誤：解析 Google Apps Script 回應 JSON 失敗。回應內容為：\n{response.text[:200]}")
+                    return
                 
                 # 載入 Users
                 users_list = data.get("users", [])
@@ -108,14 +118,23 @@ class GASDatabase:
                 "password_hash": new_user.password_hash
             }
             response = requests.post(self.webapp_url, json=payload, timeout=15)
-            if response.status_code == 200 and response.json().get("status") == "success":
-                # 同步更新記憶體快取
-                self.users_cache[username] = new_user
-                self.users_id_cache[str(new_user.id)] = new_user
-                print(f"使用者 [{username}] 建立成功，並已同步寫入 Google 試算表。")
-                return new_user
+            if response.status_code == 200:
+                if "doPost" in response.text and "Google Apps Script" in response.text:
+                    print("錯誤：GAS 缺少 doPost 函式，無法寫入使用者。")
+                    return None
+                
+                res_data = response.json()
+                if res_data.get("status") == "success":
+                    # 同步更新記憶體快取
+                    self.users_cache[username] = new_user
+                    self.users_id_cache[str(new_user.id)] = new_user
+                    print(f"使用者 [{username}] 建立成功，並已同步寫入 Google 試算表。")
+                    return new_user
+                else:
+                    print(f"錯誤：GAS 寫入使用者失敗，回應: {response.text}")
+                    return None
             else:
-                print(f"錯誤：GAS 寫入使用者失敗，回應: {response.text}")
+                print(f"錯誤：GAS 回應 HTTP {response.status_code}")
                 return None
         except Exception as e:
             print(f"連線 GAS 建立使用者失敗: {e}")
@@ -185,17 +204,26 @@ class GASDatabase:
                 "created_at": created_at
             }
             response = requests.post(self.webapp_url, json=payload, timeout=15)
-            if response.status_code == 200 and response.json().get("status") == "success":
-                # 同步更新記憶體快取
-                self.word_cache[word_lower] = {
-                    "chinese": chinese,
-                    "pos": pos,
-                    "phonetic": phonetic,
-                    "definition": definition
-                }
-                return True
+            if response.status_code == 200:
+                if "doPost" in response.text and "Google Apps Script" in response.text:
+                    print("錯誤：GAS 缺少 doPost 函式，無法寫入單字快取。")
+                    return False
+                    
+                res_data = response.json()
+                if res_data.get("status") == "success":
+                    # 同步更新記憶體快取
+                    self.word_cache[word_lower] = {
+                        "chinese": chinese,
+                        "pos": pos,
+                        "phonetic": phonetic,
+                        "definition": definition
+                    }
+                    return True
+                else:
+                    print(f"錯誤：GAS 寫入單字快取 [{word_lower}] 失敗。")
+                    return False
             else:
-                print(f"錯誤：GAS 寫入單字快取 [{word_lower}] 失敗。")
+                print(f"錯誤：GAS 寫入單字快取失敗，HTTP {response.status_code}")
                 return False
         except Exception as e:
             print(f"連線 GAS 寫入單字快取失敗: {e}")
